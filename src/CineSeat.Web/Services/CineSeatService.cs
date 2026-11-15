@@ -366,6 +366,67 @@ namespace CineSeat.Web.Services
             return null;
         }
 
+        public async Task<AppUser?> GetUserByEmailAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT user_id, full_name, email, phone, created_at FROM app_users WHERE LOWER(TRIM(email)) = LOWER(TRIM(:p_email))";
+            cmd.Parameters.Add("p_email", OracleDbType.Varchar2, email.Trim(), ParameterDirection.Input);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return new AppUser
+                {
+                    UserId = Convert.ToInt32(reader["user_id"]),
+                    FullName = reader["full_name"]?.ToString() ?? string.Empty,
+                    Email = reader["email"]?.ToString() ?? string.Empty,
+                    Phone = reader["phone"]?.ToString(),
+                    CreatedAt = Convert.ToDateTime(reader["created_at"])
+                };
+            }
+            return null;
+        }
+
+        public async Task<AppUser> RegisterUserAsync(string fullName, string email, string phone)
+        {
+            if (string.IsNullOrWhiteSpace(fullName)) throw new ArgumentException("Họ và tên không được để trống.", nameof(fullName));
+            if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email không được để trống.", nameof(email));
+            if (string.IsNullOrWhiteSpace(phone)) throw new ArgumentException("Số điện thoại không được để trống.", nameof(phone));
+
+            var existing = await GetUserByEmailAsync(email);
+            if (existing != null)
+            {
+                throw new InvalidOperationException($"Email '{email.Trim()}' đã tồn tại trong hệ thống. Vui lòng đăng nhập hoặc sử dụng email khác.");
+            }
+
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var tx = conn.BeginTransaction();
+            try
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = @"INSERT INTO app_users(user_id, full_name, email, phone) 
+                                    VALUES ((SELECT NVL(MAX(user_id), 0) + 1 FROM app_users), :p_full_name, :p_email, :p_phone)";
+                cmd.Parameters.Add("p_full_name", OracleDbType.NVarchar2, fullName.Trim(), ParameterDirection.Input);
+                cmd.Parameters.Add("p_email", OracleDbType.Varchar2, email.Trim().ToLowerInvariant(), ParameterDirection.Input);
+                cmd.Parameters.Add("p_phone", OracleDbType.Varchar2, phone.Trim(), ParameterDirection.Input);
+
+                await cmd.ExecuteNonQueryAsync();
+                tx.Commit();
+            }
+            catch
+            {
+                tx.Rollback();
+                throw;
+            }
+
+            var newUser = await GetUserByEmailAsync(email);
+            return newUser ?? throw new InvalidOperationException("Không thể tạo tài khoản người dùng.");
+        }
+
         public async Task<List<Promotion>> GetActivePromotionsAsync()
         {
             var promos = new List<Promotion>();

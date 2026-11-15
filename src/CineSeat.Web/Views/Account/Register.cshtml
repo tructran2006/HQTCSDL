@@ -1,0 +1,92 @@
+@model CineSeat.Web.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Đăng Ký Thành Viên - CineSeat";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6 col-xl-5">
+            <div class="card bg-card border-cs rounded-4 p-4 p-md-5 shadow-lg position-relative overflow-hidden">
+                <!-- Vầng hào quang trang trí -->
+                <div class="position-absolute top-0 start-50 translate-middle-x" 
+                     style="width: 250px; height: 120px; background: radial-gradient(ellipse, rgba(245, 197, 24, 0.2) 0%, transparent 70%); filter: blur(25px); pointer-events: none;"></div>
+
+                <div class="text-center mb-4 position-relative z-1">
+                    <a asp-controller="Movies" asp-action="Index" class="d-inline-flex align-items-center gap-2 text-decoration-none mb-3">
+                        <div class="brand-badge shadow-sm"><i class="bi bi-film"></i></div>
+                        <span class="fs-4 fw-extrabold text-white tracking-wider">CINE<span class="text-danger">SEAT</span></span>
+                    </a>
+                    <h4 class="fw-bold text-white mb-1">Đăng Ký Thành Viên</h4>
+                    <p class="text-secondary small">Trở thành thành viên CineSeat để nhận ưu đãi và tích điểm</p>
+                </div>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 text-danger rounded-3 fs-8 p-3 mb-4">
+                        <div class="d-flex align-items-center gap-2 mb-1 fw-bold">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span>Thông báo đăng ký:</span>
+                        </div>
+                        <div asp-validation-summary="All" class="mb-0 ps-3"></div>
+                    </div>
+                }
+
+                <form asp-action="Register" method="post" class="position-relative z-1">
+                    @Html.AntiForgeryToken()
+
+                    <!-- Họ và tên -->
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label text-white fs-8 fw-semibold"></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-surface border-cs text-secondary"><i class="bi bi-person"></i></span>
+                            <input asp-for="FullName" class="form-control bg-surface border-cs text-white shadow-none" 
+                                   placeholder="VD: Trần Văn An" />
+                        </div>
+                        <span asp-validation-for="FullName" class="text-danger fs-9 mt-1 d-block"></span>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label text-white fs-8 fw-semibold"></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-surface border-cs text-secondary"><i class="bi bi-envelope"></i></span>
+                            <input asp-for="Email" class="form-control bg-surface border-cs text-white shadow-none" 
+                                   placeholder="VD: tranvanan@gmail.com" />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger fs-9 mt-1 d-block"></span>
+                    </div>
+
+                    <!-- Số điện thoại -->
+                    <div class="mb-4">
+                        <label asp-for="Phone" class="form-label text-white fs-8 fw-semibold"></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-surface border-cs text-secondary"><i class="bi bi-telephone"></i></span>
+                            <input asp-for="Phone" class="form-control bg-surface border-cs text-white shadow-none" 
+                                   placeholder="VD: 0987654321" />
+                        </div>
+                        <span asp-validation-for="Phone" class="text-danger fs-9 mt-1 d-block"></span>
+                        <small class="text-secondary fs-9 mt-1 d-block">
+                            * Lưu ý: Số điện thoại này đồng thời sẽ được sử dụng làm mật khẩu đăng nhập của bạn.
+                        </small>
+                    </div>
+
+                    <!-- Nút Đăng ký -->
+                    <button type="submit" class="btn btn-cinema w-100 rounded-pill py-2 fw-bold fs-7 shadow mb-4 d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-person-plus-fill fs-6"></i>
+                        <span>Hoàn Tất Đăng Ký</span>
+                    </button>
+
+                    <!-- Link Đăng nhập -->
+                    <div class="text-center text-secondary fs-8">
+                        Đã có tài khoản? 
+                        <a asp-action="Login" class="text-danger fw-bold text-decoration-none ms-1">Đăng nhập ngay</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

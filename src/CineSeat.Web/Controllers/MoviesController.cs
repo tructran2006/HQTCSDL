@@ -7,12 +7,10 @@ namespace CineSeat.Web.Controllers
     public class MoviesController : Controller
     {
         private readonly ICineSeatService _cineSeatService;
-        private readonly IUserContext _userContext;
 
-        public MoviesController(ICineSeatService cineSeatService, IUserContext userContext)
+        public MoviesController(ICineSeatService cineSeatService)
         {
             _cineSeatService = cineSeatService;
-            _userContext = userContext;
         }
 
         // GET: / (hoặc /Movies/Index)
@@ -87,21 +85,6 @@ namespace CineSeat.Web.Controllers
             };
 
             return View(vm);
-        }
-
-        // POST: /Movies/SwitchUser (Chuyển đổi tài khoản demo)
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult SwitchUser(int userId, string? returnUrl)
-        {
-            _userContext.SetCurrentUser(userId);
-            TempData["SuccessMessage"] = $"Đã chuyển sang tài khoản người dùng demo #{userId}.";
-
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
-            {
-                return Redirect(returnUrl);
-            }
-            return RedirectToAction(nameof(Index));
         }
     }
 }

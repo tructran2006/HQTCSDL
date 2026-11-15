@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CineSeat.Web.Models;
 using Microsoft.AspNetCore.Http;
 
@@ -6,16 +7,20 @@ namespace CineSeat.Web.Services
     public interface IUserContext
     {
         int CurrentUserId { get; }
-        Task<AppUser> GetCurrentUserAsync();
-        void SetCurrentUser(int userId);
+        bool IsAuthenticated { get; }
+        bool IsAdmin { get; }
+        bool IsCustomer { get; }
+        string CurrentUserName { get; }
+        string CurrentUserEmail { get; }
+        string CurrentUserPhone { get; }
+        string CurrentUserRole { get; }
+        Task<AppUser?> GetCurrentUserAsync();
     }
 
     public class UserContext : IUserContext
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ICineSeatService _cineSeatService;
-        private const string UserSessionKey = "CurrentUserId";
-        private const string UserCookieKey = "CineSeat_UserId";
 
         public UserContext(IHttpContextAccessor httpContextAccessor, ICineSeatService cineSeatService)
         {
@@ -23,70 +28,80 @@ namespace CineSeat.Web.Services
             _cineSeatService = cineSeatService;
         }
 
+        private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
+
+        public bool IsAuthenticated => User?.Identity?.IsAuthenticated == true;
+
+        public bool IsAdmin => IsAuthenticated && User?.IsInRole("ADMIN") == true;
+
+        public bool IsCustomer => IsAuthenticated && User?.IsInRole("CUSTOMER") == true;
+
+        public string CurrentUserRole => IsAdmin ? "ADMIN" : (IsCustomer ? "CUSTOMER" : "GUEST");
+
+        public string CurrentUserName
+        {
+            get
+            {
+                if (!IsAuthenticated || User == null)
+                {
+                    return "Khách";
+                }
+                return User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Name) ?? "Người dùng";
+            }
+        }
+
+        public string CurrentUserEmail => User?.FindFirstValue(ClaimTypes.Email) ?? string.Empty;
+
+        public string CurrentUserPhone => User?.FindFirstValue(ClaimTypes.MobilePhone) ?? string.Empty;
+
         public int CurrentUserId
         {
             get
             {
-                var context = _httpContextAccessor.HttpContext;
-                if (context != null)
+                if (IsAuthenticated && User != null)
                 {
-                    // 1. Kiểm tra Session trước
-                    try
+                    var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (int.TryParse(idClaim, out int uid) && uid > 0)
                     {
-                        var sessionUid = context.Session.GetInt32(UserSessionKey);
-                        if (sessionUid.HasValue && sessionUid.Value > 0)
-                        {
-                            return sessionUid.Value;
-                        }
-                    }
-                    catch
-                    {
-                        // Bỏ qua nếu Session chưa sẵn sàng
-                    }
-
-                    // 2. Kiểm tra Cookie
-                    if (context.Request.Cookies.TryGetValue(UserCookieKey, out var cookieVal))
-                    {
-                        if (int.TryParse(cookieVal, out int uid) && uid > 0)
-                        {
-                            return uid;
-                        }
+                        return uid;
                     }
                 }
-                return 1; // Mặc định là Nguyễn Minh Anh (user_id = 1)
+                // Fallback mặc định cho khách/demo nếu chưa đăng nhập
+                return 1;
             }
         }
 
-        public async Task<AppUser> GetCurrentUserAsync()
+        public async Task<AppUser?> GetCurrentUserAsync()
         {
-            int uid = CurrentUserId;
-            var user = await _cineSeatService.GetUserByIdAsync(uid);
-            return user ?? new AppUser { UserId = 1, FullName = "Nguyễn Minh Anh", Email = "minhanh@demo.local" };
-        }
-
-        public void SetCurrentUser(int userId)
-        {
-            var context = _httpContextAccessor.HttpContext;
-            if (context != null)
+            if (IsAdmin)
             {
-                // Lưu vào Session
-                try
+                return new AppUser
                 {
-                    context.Session.SetInt32(UserSessionKey, userId);
-                }
-                catch
-                {
-                    // Bỏ qua nếu Session lỗi
-                }
-
-                // Lưu vào Cookie
-                context.Response.Cookies.Append(UserCookieKey, userId.ToString(), new CookieOptions
-                {
-                    Expires = DateTimeOffset.Now.AddDays(7),
-                    HttpOnly = true,
-                    IsEssential = true
-                });
+                    UserId = 0,
+                    FullName = CurrentUserName,
+                    Email = CurrentUserEmail,
+                    Phone = "0999999999"
+                };
             }
+
+            if (IsAuthenticated)
+            {
+                int uid = CurrentUserId;
+                var user = await _cineSeatService.GetUserByIdAsync(uid);
+                if (user != null)
+                {
+                    return user;
+                }
+            }
+
+            // Trả về user mặc định nếu chưa đăng nhập
+            return new AppUser
+            {
+                UserId = 1,
+                FullName = "Nguyễn Minh Anh",
+                Email = "minhanh@demo.local",
+                Phone = "0900000001"
+            };
         }
     }
 }

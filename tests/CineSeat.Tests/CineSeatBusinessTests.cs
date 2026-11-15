@@ -491,4 +491,28 @@ public class CineSeatBusinessTests
         Assert.Equal("CineSeat Nguyễn Huệ", cinema1.CinemaName);
         Assert.Equal("Quận 1, TP. Hồ Chí Minh", cinema1.Address);
     }
+
+    [Fact]
+    public async Task Test8_UserAuthenticationAndRegistration_Success()
+    {
+        var service = CreateService();
+
+        // 1. Kiểm tra tìm user đã có theo email
+        var existingUser = await service.GetUserByEmailAsync("minhanh@demo.local");
+        Assert.NotNull(existingUser);
+        Assert.Equal("Nguyễn Minh Anh", existingUser.FullName);
+        Assert.Equal("0900000001", existingUser.Phone);
+
+        // 2. Đăng ký user mới và kiểm tra tìm lại
+        string testEmail = $"test_{Guid.NewGuid():N}@cineseat.local";
+        var newUser = await service.RegisterUserAsync("Người Dùng Thử Nghiệm", testEmail, "0987654321");
+        Assert.NotNull(newUser);
+        Assert.True(newUser.UserId > 0);
+        Assert.Equal("Người Dùng Thử Nghiệm", newUser.FullName);
+
+        var retrievedUser = await service.GetUserByEmailAsync(testEmail);
+        Assert.NotNull(retrievedUser);
+        Assert.Equal(newUser.UserId, retrievedUser.UserId);
+        Assert.Equal("0987654321", retrievedUser.Phone);
+    }
 }

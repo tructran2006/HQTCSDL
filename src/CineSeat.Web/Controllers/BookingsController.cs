@@ -1,6 +1,7 @@
 using CineSeat.Web.Exceptions;
 using CineSeat.Web.Models;
 using CineSeat.Web.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineSeat.Web.Controllers
@@ -49,8 +50,8 @@ namespace CineSeat.Web.Controllers
                 Movie = movie ?? new Movie { Title = showtime.MovieTitle },
                 Seats = seats,
                 AvailablePromotions = promotions,
-                CurrentUserId = currentUser.UserId,
-                CurrentUserName = currentUser.FullName
+                CurrentUserId = currentUser?.UserId ?? 0,
+                CurrentUserName = currentUser?.FullName ?? "Khách"
             };
 
             return View(viewModel);
@@ -109,6 +110,12 @@ namespace CineSeat.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Hold(HoldSeatsRequest request)
         {
+            if (!User.Identity?.IsAuthenticated == true)
+            {
+                TempData["ErrorMessage"] = "Vui lòng đăng nhập trước khi tiến hành giữ ghế.";
+                return RedirectToAction("Login", "Account", new { returnUrl = Url.Action("SelectSeats", new { id = request.ShowtimeId }) });
+            }
+
             int currentUser = _userContext.CurrentUserId;
 
             if (string.IsNullOrWhiteSpace(request.SeatIdsJson) || request.SeatIdsJson == "[]")
@@ -142,6 +149,16 @@ namespace CineSeat.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> HoldJson([FromBody] HoldSeatsRequest request)
         {
+            if (!User.Identity?.IsAuthenticated == true)
+            {
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = 401,
+                    ErrorMessage = "Vui lòng đăng nhập tài khoản trước khi tiến hành giữ ghế."
+                });
+            }
+
             int currentUser = _userContext.CurrentUserId;
 
             if (string.IsNullOrWhiteSpace(request.SeatIdsJson) || request.SeatIdsJson == "[]")
@@ -189,6 +206,7 @@ namespace CineSeat.Web.Controllers
         }
 
         // GET: Bookings/Checkout/{bookingId}
+        [Authorize(Roles = "CUSTOMER,ADMIN")]
         public async Task<IActionResult> Checkout(int id)
         {
             var booking = await _cineSeatService.GetBookingByIdAsync(id);
@@ -214,6 +232,7 @@ namespace CineSeat.Web.Controllers
         // POST: Bookings/ConfirmPayment
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CUSTOMER,ADMIN")]
         public async Task<IActionResult> ConfirmPayment(int bookingId, string method)
         {
             try
@@ -238,6 +257,7 @@ namespace CineSeat.Web.Controllers
         // POST: Bookings/Cancel
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CUSTOMER,ADMIN")]
         public async Task<IActionResult> CancelBooking(int bookingId)
         {
             try
@@ -260,16 +280,19 @@ namespace CineSeat.Web.Controllers
         }
 
         // GET: Bookings/History
+        [Authorize(Roles = "CUSTOMER,ADMIN")]
         public async Task<IActionResult> History()
         {
             var currentUser = await _userContext.GetCurrentUserAsync();
-            var bookings = await _cineSeatService.GetBookingHistoryByUserIdAsync(currentUser.UserId);
+            int userId = currentUser?.UserId ?? _userContext.CurrentUserId;
+            var bookings = await _cineSeatService.GetBookingHistoryByUserIdAsync(userId);
 
             ViewBag.CurrentUser = currentUser;
             return View(bookings);
         }
 
         // GET: Bookings/Detail/{bookingId}
+        [Authorize(Roles = "CUSTOMER,ADMIN")]
         public async Task<IActionResult> Detail(int id)
         {
             var booking = await _cineSeatService.GetBookingByIdAsync(id);
