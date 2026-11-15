@@ -9,39 +9,69 @@
 }
 
 <div class="container pb-5">
-    <!-- 1. HERO BANNER PHIM NỔI BẬT (100% REAL DATA TỪ CSDL) -->
+    <!-- 1. HERO BANNER CHUYÊN NGHIỆP 2 CỘT (SPLIT HERO BANNER) TỪ ORACLE 23ai -->
     @if (heroMovie != null)
     {
-        <div class="hero-banner p-4 p-md-5 mb-5 text-white position-relative" 
-             style="background-image: url('/images/@heroMovie.PosterFile');">
-            <div class="position-absolute top-0 start-0 w-100 h-100 hero-overlay"></div>
+        <div class="hero-split-banner p-4 p-md-5 mb-5 text-white position-relative overflow-hidden shadow-lg">
+            <!-- Nền mờ nghệ thuật lấy từ poster chính phim -->
+            <div class="hero-split-banner-bg" style="background-image: url('/images/@(string.IsNullOrEmpty(heroMovie.PosterFile) ? "default-poster.jpg" : heroMovie.PosterFile)');"></div>
+            <div class="position-absolute top-0 start-0 w-100 h-100 hero-split-overlay"></div>
             
-            <div class="position-relative z-1 col-lg-7 py-3">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <span class="badge bg-danger text-uppercase px-2 py-1 fs-9 fw-bold">Phim Nổi Bật Hôm Nay</span>
-                    <span class="badge badge-rating badge-rating-@heroMovie.AgeRating">@heroMovie.AgeRating</span>
-                    <span class="text-secondary fs-8"><i class="bi bi-clock me-1"></i>@heroMovie.DurationMin phút</span>
+            <div class="row align-items-center g-4 position-relative z-1">
+                <!-- Cột trái (65%): Thông tin phim & Nút hành động -->
+                <div class="col-lg-7 col-xl-8 py-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <span class="badge bg-danger text-uppercase px-3 py-1 fs-9 fw-bold shadow-sm">
+                            <i class="bi bi-star-fill me-1 text-warning"></i>Phim Nổi Bật Hôm Nay
+                        </span>
+                        <span class="badge badge-rating badge-rating-@heroMovie.AgeRating shadow-sm">@heroMovie.AgeRating</span>
+                        <span class="badge bg-dark bg-opacity-75 text-light border border-secondary border-opacity-50 px-2 py-1 fs-9">
+                            <i class="bi bi-clock me-1 text-danger"></i>@heroMovie.DurationMin phút
+                        </span>
+                        <span class="badge bg-dark bg-opacity-75 text-gold border border-warning border-opacity-25 px-2 py-1 fs-9">
+                            <i class="bi bi-camera-reels me-1"></i>2D / Dolby Atmos
+                        </span>
+                    </div>
+                    
+                    <h1 class="display-4 fw-black text-white mb-2 tracking-tight">@heroMovie.Title</h1>
+                    
+                    <p class="text-gold fw-semibold fs-6 mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-tags-fill"></i>
+                        <span>@heroMovie.Genre</span>
+                    </p>
+                    
+                    <p class="text-light opacity-90 fs-6 mb-4 line-clamp-3 text-break" style="max-width: 680px; line-height: 1.6;">
+                        @(string.IsNullOrWhiteSpace(heroMovie.Synopsis) 
+                            ? "Trải nghiệm điện ảnh đỉnh cao tại cụm rạp CineSeat với công nghệ âm thanh vòm Dolby Atmos và màn chiếu IMAX sắc nét." 
+                            : heroMovie.Synopsis)
+                    </p>
+                    
+                    <div class="d-flex flex-wrap gap-3 pt-2">
+                        <a asp-action="Details" asp-route-id="@heroMovie.MovieId" 
+                           class="btn btn-cinema btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2 shadow-lg fw-bold">
+                            <i class="bi bi-ticket-perforated-fill fs-5"></i>
+                            <span>Đặt Vé Ngay</span>
+                        </a>
+                        <a asp-action="CinemaShowtimes" 
+                           class="btn btn-outline-light btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2 backdrop-blur">
+                            <i class="bi bi-geo-alt-fill text-danger"></i>
+                            <span>Xem Lịch Rạp</span>
+                        </a>
+                    </div>
                 </div>
-                
-                <h1 class="display-5 fw-extrabold text-white mb-2 tracking-tight">@heroMovie.Title</h1>
-                
-                <p class="text-gold fw-semibold fs-7 mb-3">
-                    <i class="bi bi-tags-fill me-1"></i>@heroMovie.Genre
-                </p>
-                
-                <p class="text-light opacity-75 fs-7 mb-4 line-clamp-3" style="max-width: 600px;">
-                    @(string.IsNullOrWhiteSpace(heroMovie.Synopsis) ? "Trải nghiệm điện ảnh đỉnh cao tại cụm rạp CineSeat với công nghệ âm thanh Dolby Atmos và màn chiếu IMAX sắc nét." : heroMovie.Synopsis)
-                </p>
-                
-                <div class="d-flex flex-wrap gap-3">
-                    <a asp-action="Details" asp-route-id="@heroMovie.MovieId" class="btn btn-cinema btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2">
-                        <i class="bi bi-ticket-perforated-fill fs-5"></i>
-                        <span>Đặt Vé Ngay</span>
-                    </a>
-                    <a asp-action="CinemaShowtimes" class="btn btn-outline-light btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2">
-                        <i class="bi bi-geo-alt-fill"></i>
-                        <span>Xem Lịch Rạp</span>
-                    </a>
+
+                <!-- Cột phải (35%): Poster chính thức sắc nét bo góc 16px, đổ bóng sâu & viền sáng -->
+                <div class="col-lg-5 col-xl-4 text-center text-lg-end d-none d-lg-block">
+                    <div class="hero-poster-wrapper d-inline-block position-relative">
+                        <img src="/images/@(string.IsNullOrEmpty(heroMovie.PosterFile) ? "default-poster.jpg" : heroMovie.PosterFile)" 
+                             alt="@heroMovie.Title" 
+                             class="hero-poster-img"
+                             onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                        <span class="hero-poster-badge badge badge-rating badge-rating-@heroMovie.AgeRating fs-8">
+                            @heroMovie.AgeRating
+                        </span>
+                        <div class="hero-poster-glow"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -87,7 +117,7 @@
 
             <!-- Nút lọc & Reset -->
             <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-cinema w-100 rounded-3">
+                <button type="submit" class="btn btn-cinema w-100 rounded-3 fw-bold">
                     <i class="bi bi-funnel-fill me-1"></i> Lọc
                 </button>
                 @if (!string.IsNullOrEmpty(currentSearch) || !string.IsNullOrEmpty(currentGenre) || currentRating != "ALL")
@@ -100,7 +130,7 @@
         </form>
     </div>
 
-    <!-- 3. DANH SÁCH THẺ PHIM (MOVIE CARDS TỶ LỆ 2:3) -->
+    <!-- 3. DANH SÁCH THẺ PHIM ĐANG CHIẾU RẠP (LƯỚI 4 CỘT CHUẨN) -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
@@ -125,23 +155,24 @@
     }
     else
     {
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-4">
             @foreach (var movie in Model)
             {
                 <div class="col">
                     <div class="movie-card h-100 d-flex flex-column">
-                        <!-- Poster Container 2:3 -->
+                        <!-- Poster Container Tỷ lệ 2:3 với Fallback onerror -->
                         <div class="movie-poster-container">
                             <img src="/images/@(string.IsNullOrEmpty(movie.PosterFile) ? "default-poster.jpg" : movie.PosterFile)" 
                                  alt="@movie.Title" 
                                  class="movie-poster-img"
                                  onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                             
-                            <!-- Badges trên poster -->
-                            <div class="position-absolute top-0 start-0 p-2 d-flex flex-column gap-1">
+                            <!-- Nhãn độ tuổi ở góc trên phải -->
+                            <div class="position-absolute top-0 end-0 p-2">
                                 <span class="badge badge-rating badge-rating-@movie.AgeRating shadow">@movie.AgeRating</span>
                             </div>
 
+                            <!-- Thông tin thời lượng & số suất chiếu ở đáy poster -->
                             <div class="position-absolute bottom-0 start-0 w-100 p-2 bg-dark bg-opacity-75 backdrop-blur d-flex justify-content-between align-items-center">
                                 <small class="text-white fs-8"><i class="bi bi-clock me-1 text-danger"></i>@movie.DurationMin phút</small>
                                 <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 fs-9">
@@ -150,22 +181,25 @@
                             </div>
                         </div>
 
-                        <!-- Info Body -->
+                        <!-- Thân card phim đồng đều chiều cao -->
                         <div class="p-3 d-flex flex-column flex-grow-1 justify-content-between">
                             <div>
-                                <h6 class="fw-bold text-white mb-1 text-truncate" title="@movie.Title">
+                                <!-- Tiêu đề phim giới hạn tối đa 2 dòng -->
+                                <h6 class="fw-bold text-white mb-1 movie-title-clamp" title="@movie.Title">
                                     @movie.Title
                                 </h6>
+                                <!-- Thể loại phim -->
                                 <p class="text-secondary fs-8 mb-2 text-truncate" title="@movie.Genre">
                                     <i class="bi bi-film me-1 text-gold"></i>@movie.Genre
                                 </p>
                             </div>
 
-                            <div class="pt-2 border-top border-cs mt-2">
+                            <!-- Nút Chọn Suất & Đặt Vé full-width ở đáy card -->
+                            <div class="pt-2 border-top border-cs mt-auto">
                                 <a asp-action="Details" asp-route-id="@movie.MovieId" 
-                                   class="btn btn-cinema btn-sm w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-1">
-                                    <i class="bi bi-ticket-detailed"></i>
-                                    <span>Xem Lịch Chiếu</span>
+                                   class="btn btn-cinema btn-sm w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-2 fw-bold shadow-sm">
+                                    <i class="bi bi-ticket-perforated-fill"></i>
+                                    <span>Chọn Suất & Đặt Vé</span>
                                 </a>
                             </div>
                         </div>

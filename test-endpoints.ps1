@@ -1,4 +1,10 @@
-﻿$endpoints = @(
+﻿# =============================================================================
+# CineSeat - Script kiểm thử toàn diện HTTP Endpoints & Dữ liệu UTF-8
+# =============================================================================
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+$endpoints = @(
     @{ Url = 'http://localhost:5000/'; Method = 'GET'; Name = 'User Home / Movies Index' },
     @{ Url = 'http://localhost:5000/Movies/Details/1'; Method = 'GET'; Name = 'User Movie Details' },
     @{ Url = 'http://localhost:5000/Movies/CinemaShowtimes'; Method = 'GET'; Name = 'User Showtimes by Cinema' },
@@ -8,8 +14,6 @@
     @{ Url = 'http://localhost:5000/Admin/Movies'; Method = 'GET'; Name = 'Admin Movies Management' },
     @{ Url = 'http://localhost:5000/Admin/Showtimes'; Method = 'GET'; Name = 'Admin Showtimes Management' },
     @{ Url = 'http://localhost:5000/Admin/Bookings'; Method = 'GET'; Name = 'Admin Bookings Management' },
-    @{ Url = 'http://localhost:5000/images/poster-1.jpg'; Method = 'GET'; Name = 'Static Poster 1 Image' },
-    @{ Url = 'http://localhost:5000/images/poster-13.jpg'; Method = 'GET'; Name = 'Static Poster 13 Image' },
     @{ Url = 'http://localhost:5000/css/cineseat.css'; Method = 'GET'; Name = 'CineSeat Modern CSS' },
     @{ 
        Url = 'http://localhost:5000/api/bookings/calculate-price'; 
@@ -19,6 +23,11 @@
        Name = 'API Calculate Price'
     }
 )
+
+# Thêm 13 file ảnh poster vào danh sách kiểm thử
+for ($i = 1; $i -le 13; $i++) {
+    $endpoints += @{ Url = "http://localhost:5000/images/poster-$i.jpg"; Method = 'GET'; Name = "Movie Poster $i" }
+}
 
 $allPassed = $true
 foreach ($ep in $endpoints) {
@@ -35,9 +44,32 @@ foreach ($ep in $endpoints) {
     }
 }
 
+# Kiểm tra dữ liệu tiếng Việt UTF-8 trên Trang Chủ
+Write-Host "`n>>> Kiem tra tinh toan ven ky tu tieng Viet UTF-8 tren giao dien..." -ForegroundColor Cyan
+$homeRes = Invoke-WebRequest -Uri 'http://localhost:5000/' -UseBasicParsing
+$homeHtml = [System.Text.Encoding]::UTF8.GetString($homeRes.RawContentStream.ToArray())
+
+$vietnameseChecks = @(
+    'Nguyễn Minh Anh',
+    'Khoa học viễn tưởng',
+    'Lật Mặt 7: Một Điều Ước',
+    'Phim Nổi Bật Hôm Nay',
+    'hero-split-banner',
+    'hero-poster-wrapper'
+)
+
+foreach ($vc in $vietnameseChecks) {
+    if ($homeHtml.Contains($vc)) {
+        Write-Host "[PASS UTF-8] Tim thay: $vc" -ForegroundColor Green
+    } else {
+        Write-Host "[FAIL UTF-8] KHONG tim thay: $vc" -ForegroundColor Red
+        $allPassed = $false
+    }
+}
+
 if ($allPassed) {
     Write-Host "`n==================================================================" -ForegroundColor Cyan
-    Write-Host ">>> TẤT CẢ 13/13 USER & ADMIN ROUTES ĐỀU PHẢN HỒI 200 OK SẠCH SẼ! <<<" -ForegroundColor Green
+    Write-Host ">>> TẤT CẢ 24/24 ROUTES & POSTERS + UTF-8 ĐỀU ĐẠT CHUẨN 100%! <<<" -ForegroundColor Green
     Write-Host "==================================================================" -ForegroundColor Cyan
 } else {
     exit 1

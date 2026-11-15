@@ -5,6 +5,8 @@
 -- Chạy trên schema riêng CINESEAT@FREEPDB1.
 -- =============================================================================
 
+SET DEFINE OFF;
+
 -- 1. DANH SÁCH CỤM RẠP & PHÒNG CHIẾU
 INSERT INTO cinemas(cinema_id, cinema_name, address)
 VALUES(1, N'CineSeat Nguyễn Huệ', N'Quận 1, TP. Hồ Chí Minh');
