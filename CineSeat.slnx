@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/CineSeat.Web/CineSeat.Web.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CineSeat.Tests/CineSeat.Tests.csproj" />
+  </Folder>
 </Solution>
