@@ -4,9 +4,12 @@
 # =============================================================================
 set -e
 
+export NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+export LANG=C.UTF-8
+
 echo ">>> Dang khoi tao co so du lieu CineSeat tren Oracle 23ai Free..."
 sqlplus -s / as sysdba << 'EOF'
-@/opt/oracle/scripts/setup/00_master_init.sql
+@/container-entrypoint-initdb.d/00_master_init.sql
 EXIT;
 EOF
 

@@ -1,10 +1,19 @@
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 using CineSeat.Web.Data;
 using CineSeat.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cấu hình UTF-8 HtmlEncoder & JsonEncoder cho toàn bộ tiếng Việt không bị escape HTML entity
+builder.Services.AddSingleton<HtmlEncoder>(HtmlEncoder.Create(UnicodeRanges.All));
+
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
+    });
 builder.Services.AddHttpContextAccessor();
 
 // Đăng ký dịch vụ kết nối Oracle và Service nghiệp vụ

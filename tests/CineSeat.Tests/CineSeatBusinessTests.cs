@@ -436,4 +436,59 @@ public class CineSeatBusinessTests
         Assert.Equal("AVAILABLE", seat.Status);
         Assert.Null(seat.BookingId);
     }
+
+    /// <summary>
+    /// TC07: Kiểm tra tính toàn vẹn ký tự tiếng Việt (UTF-8 / AL32UTF8) từ Oracle Database
+    /// </summary>
+    [Fact]
+    public async Task TC07_VietnameseCharacterEncoding_PreservedCorrectly()
+    {
+        var service = CreateService();
+
+        // 1. Kiểm tra 13 phim
+        var movies = await service.GetMoviesAsync();
+        Assert.NotEmpty(movies);
+
+        var movie1 = movies.FirstOrDefault(m => m.MovieId == 1);
+        Assert.NotNull(movie1);
+        Assert.Equal("Khoa học viễn tưởng", movie1.Genre);
+        Assert.DoesNotContain("?", movie1.Genre);
+
+        var movie8 = movies.FirstOrDefault(m => m.MovieId == 8);
+        Assert.NotNull(movie8);
+        Assert.Equal("Lật Mặt 7: Một Điều Ước", movie8.Title);
+        Assert.Equal("Gia đình / Tâm lý", movie8.Genre);
+        Assert.DoesNotContain("?", movie8.Title);
+
+        // Không phim nào chứa dấu ? đen hoặc lỗi mã hóa
+        foreach (var m in movies)
+        {
+            Assert.DoesNotContain("?", m.Title);
+            Assert.DoesNotContain("?", m.Genre);
+        }
+
+        // 2. Kiểm tra danh sách người dùng tiếng Việt
+        var users = await service.GetUsersAsync();
+        Assert.NotEmpty(users);
+
+        var user1 = users.FirstOrDefault(u => u.UserId == 1);
+        Assert.NotNull(user1);
+        Assert.Equal("Nguyễn Minh Anh", user1.FullName);
+
+        var user5 = users.FirstOrDefault(u => u.UserId == 5);
+        Assert.NotNull(user5);
+        Assert.Equal("Đỗ Thùy Linh", user5.FullName);
+
+        foreach (var u in users)
+        {
+            Assert.DoesNotContain("?", u.FullName);
+        }
+
+        // 3. Kiểm tra cụm rạp & phòng chiếu
+        var cinemas = await service.GetCinemasAsync();
+        var cinema1 = cinemas.FirstOrDefault(c => c.CinemaId == 1);
+        Assert.NotNull(cinema1);
+        Assert.Equal("CineSeat Nguyễn Huệ", cinema1.CinemaName);
+        Assert.Equal("Quận 1, TP. Hồ Chí Minh", cinema1.Address);
+    }
 }
