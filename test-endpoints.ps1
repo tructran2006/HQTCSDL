@@ -15,6 +15,8 @@ $endpoints = @(
     @{ Url = 'http://localhost:5000/Admin/Showtimes'; Method = 'GET'; Name = 'Admin Showtimes Management' },
     @{ Url = 'http://localhost:5000/Admin/Bookings'; Method = 'GET'; Name = 'Admin Bookings Management' },
     @{ Url = 'http://localhost:5000/css/cineseat.css'; Method = 'GET'; Name = 'CineSeat Modern CSS' },
+    @{ Url = 'http://localhost:5000/Account/Login'; Method = 'GET'; Name = 'Account Login Page' },
+    @{ Url = 'http://localhost:5000/Account/Register'; Method = 'GET'; Name = 'Account Register Page' },
     @{ 
        Url = 'http://localhost:5000/api/bookings/calculate-price'; 
        Method = 'POST'; 
@@ -50,12 +52,12 @@ $homeRes = Invoke-WebRequest -Uri 'http://localhost:5000/' -UseBasicParsing
 $homeHtml = [System.Text.Encoding]::UTF8.GetString($homeRes.RawContentStream.ToArray())
 
 $vietnameseChecks = @(
-    'Nguyễn Minh Anh',
     'Khoa học viễn tưởng',
     'Lật Mặt 7: Một Điều Ước',
     'Phim Nổi Bật Hôm Nay',
     'hero-split-banner',
-    'hero-poster-wrapper'
+    'hero-poster-wrapper',
+    'Đăng Nhập'
 )
 
 foreach ($vc in $vietnameseChecks) {

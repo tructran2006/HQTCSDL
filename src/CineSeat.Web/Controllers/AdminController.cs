@@ -1,10 +1,12 @@
 using CineSeat.Web.Exceptions;
 using CineSeat.Web.Models;
 using CineSeat.Web.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineSeat.Web.Controllers
 {
+    [Authorize(Roles = "ADMIN")]
     public class AdminController : Controller
     {
         private readonly ICineSeatService _cineSeatService;

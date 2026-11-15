@@ -131,13 +131,29 @@
                 </h5>
 
                 <!-- Khách hàng đang thao tác -->
-                <div class="p-2 mb-3 bg-surface rounded-3 border-cs d-flex align-items-center gap-2">
-                    <span class="user-avatar-circle" style="width:28px; height:28px; font-size:0.75rem;">@Model.CurrentUserName.Substring(0, 1)</span>
-                    <div class="text-truncate">
-                        <div class="text-white small fw-bold lh-1 text-truncate">@Model.CurrentUserName</div>
-                        <small class="text-secondary fs-9">ID: @Model.CurrentUserId (Tài khoản demo)</small>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="p-2 mb-3 bg-surface rounded-3 border-cs d-flex align-items-center gap-2">
+                        <span class="user-avatar-circle" style="width:28px; height:28px; font-size:0.75rem;">@(string.IsNullOrEmpty(Model.CurrentUserName) ? "U" : Model.CurrentUserName.Substring(0, 1).ToUpper())</span>
+                        <div class="text-truncate">
+                            <div class="text-white small fw-bold lh-1 text-truncate">@Model.CurrentUserName</div>
+                            <small class="text-success fs-9"><i class="bi bi-patch-check-fill me-1"></i>Đã đăng nhập (Mã KH: #@Model.CurrentUserId)</small>
+                        </div>
                     </div>
-                </div>
+                }
+                else
+                {
+                    <div class="p-2 mb-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-person-exclamation text-danger fs-5"></i>
+                            <div>
+                                <div class="text-white small fw-bold">Khách vãng lai</div>
+                                <small class="text-secondary fs-9">Cần đăng nhập để giữ ghế</small>
+                            </div>
+                        </div>
+                        <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-sm btn-outline-danger py-0 px-2 fs-9">Đăng nhập</a>
+                    </div>
+                }
 
                 <!-- Danh sách ghế đang chọn -->
                 <div class="mb-3">
