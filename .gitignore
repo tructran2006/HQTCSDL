@@ -1,0 +1,30 @@
+# Environment variables
+.env
+*.env.local
+
+# .NET / C#
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+.vs/
+.vscode/
+_ReSharper*/
+*.DotSettings.user
+*.xproj
+Project.lock.json
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Nn]otebooks/.ipynb_checkpoints

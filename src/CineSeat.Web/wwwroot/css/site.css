@@ -1,0 +1,176 @@
+:root {
+    --bs-font-sans-serif: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --cine-primary: #f59e0b;
+    --cine-vip: #ec4899;
+    --cine-seat-available: #10b981;
+    --cine-seat-held: #f59e0b;
+    --cine-seat-sold: #4b5563;
+    --cine-seat-selected: #3b82f6;
+}
+
+body {
+    font-family: var(--bs-font-sans-serif);
+    background-color: #0d1117;
+    color: #e5e7eb;
+}
+
+.fs-7 { font-size: 0.9rem; }
+.fs-8 { font-size: 0.8rem; }
+.fs-9 { font-size: 0.72rem; }
+.tracking-wider { letter-spacing: 0.05em; }
+
+.backdrop-blur {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.avatar-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+/* Movie Card */
+.movie-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.movie-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+.movie-poster-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    background: #21262d;
+    overflow: hidden;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+}
+.movie-poster-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.movie-rating-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+/* Screen Graphic */
+.cinema-screen-container {
+    perspective: 500px;
+}
+.cinema-screen {
+    height: 22px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1));
+    border-radius: 50% 50% 0 0 / 12px 12px 0 0;
+    box-shadow: 0 10px 24px rgba(245, 158, 11, 0.25);
+    transform: rotateX(-15deg);
+    position: relative;
+}
+.cinema-screen-label {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #9ca3af;
+    margin-top: 8px;
+    text-transform: uppercase;
+}
+
+/* Seats Grid */
+.seat-btn {
+    width: 38px;
+    height: 36px;
+    border-radius: 8px 8px 4px 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    border: 1px solid transparent;
+}
+.seat-btn:hover:not(.seat-sold):not(.seat-held) {
+    transform: scale(1.12);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.seat-available.seat-standard {
+    background-color: #064e3b;
+    border-color: #059669;
+    color: #a7f3d0;
+}
+.seat-available.seat-vip {
+    background-color: #831843;
+    border-color: #db2777;
+    color: #fbcfe8;
+}
+.seat-selected {
+    background-color: #2563eb !important;
+    border-color: #60a5fa !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.8) !important;
+    transform: scale(1.1);
+}
+.seat-held {
+    background-color: #78350f !important;
+    border-color: #d97706 !important;
+    color: #fde68a !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+.seat-sold {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #9ca3af !important;
+    cursor: not-allowed !important;
+    opacity: 0.35;
+    text-decoration: line-through;
+}
+
+/* Countdown Clock */
+.countdown-box {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: #111827;
+    border: 2px solid #f59e0b;
+    border-radius: 12px;
+    padding: 10px 24px;
+    color: #fbbf24;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    display: inline-block;
+}
+.countdown-box.urgent {
+    border-color: #ef4444;
+    color: #f87171;
+    text-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+    animation: pulse-urgent 1s infinite alternate;
+}
+@@keyframes pulse-urgent {
+    from { transform: scale(1); }
+    to { transform: scale(1.04); }
+}
+
+/* Ticket Card */
+.ticket-voucher {
+    background: radial-gradient(circle at right, transparent 15px, #1f2937 16px);
+    border-left: 4px solid var(--cine-primary);
+    border-radius: 12px;
+}
