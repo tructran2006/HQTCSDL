@@ -18,3 +18,19 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
+
+  cineseat-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cineseat-web
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__OracleDb=User Id=CINESEAT;Password=CineSeat123;Data Source=oracle-23ai:1521/FREEPDB1;Pooling=true;Min Pool Size=2;Max Pool Size=20;
+    ports:
+      - "5000:8080"
+    depends_on:
+      oracle-23ai:
+        condition: service_healthy
