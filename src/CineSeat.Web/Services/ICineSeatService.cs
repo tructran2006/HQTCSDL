@@ -17,6 +17,8 @@ namespace CineSeat.Web.Services
         // Người dùng & Khuyến mãi
         Task<List<AppUser>> GetUsersAsync();
         Task<AppUser?> GetUserByIdAsync(int userId);
+        Task<AppUser?> GetUserByEmailAsync(string email);
+        Task<AppUser> RegisterUserAsync(string fullName, string email, string phone);
         Task<List<Promotion>> GetActivePromotionsAsync();
 
         // Nghiệp vụ PL/SQL PKG_BOOKING & PR_EXPIRE_HOLDS

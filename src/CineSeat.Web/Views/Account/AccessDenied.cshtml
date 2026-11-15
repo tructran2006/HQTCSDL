@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Không Có Quyền Truy Cập - CineSeat";
+}
+
+<div class="container py-5 text-center">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card bg-card border-cs rounded-4 p-5 shadow-lg position-relative overflow-hidden">
+                <div class="p-3 d-inline-block rounded-circle bg-danger bg-opacity-10 text-danger mb-4 shadow" style="width: 80px; height: 80px; line-height: 54px; margin: 0 auto;">
+                    <i class="bi bi-shield-slash-fill fs-1"></i>
+                </div>
+
+                <h3 class="fw-extrabold text-white mb-2">Truy Cập Bị Từ Chối</h3>
+                <p class="text-danger fw-semibold fs-7 mb-3">403 - Access Denied (Yêu Cầu Quyền Quản Trị Viên ADMIN)</p>
+                
+                <p class="text-secondary small mb-4 lh-base">
+                    Tài khoản hiện tại của bạn là vai trò <strong>KHÁCH HÀNG</strong> và không có thẩm quyền truy cập vào phân hệ Quản trị viên (Admin Portal).
+                    Nếu bạn là người phụ trách hệ thống, vui lòng đăng nhập bằng tài khoản Quản Trị Viên (Admin).
+                </p>
+
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a asp-controller="Movies" asp-action="Index" class="btn btn-cinema rounded-pill px-4 py-2 fs-7 fw-bold">
+                        <i class="bi bi-house-door-fill me-1"></i>Về Trang Chủ
+                    </a>
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-warning rounded-pill px-4 py-2 fs-7 fw-bold text-gold">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng Nhập Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
