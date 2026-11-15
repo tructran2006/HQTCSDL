@@ -21,6 +21,16 @@ namespace CineSeat.Web.Controllers
         // GET: Bookings/SelectSeats/{showtimeId}
         public async Task<IActionResult> SelectSeats(int id)
         {
+            // Tự động quét và thu hồi các ghế/đơn quá hạn trước khi hiển thị sơ đồ
+            try
+            {
+                await _cineSeatService.ExpireHoldsAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Lỗi khi chạy quét thu hồi tự động tại SelectSeats");
+            }
+
             var showtime = await _cineSeatService.GetShowtimeByIdAsync(id);
             if (showtime == null)
             {
@@ -125,6 +135,56 @@ namespace CineSeat.Web.Controllers
                 _logger.LogError(ex, "Lỗi giữ ghế");
                 TempData["ErrorMessage"] = "Có lỗi xảy ra trong quá trình giữ ghế. Vui lòng thử lại.";
                 return RedirectToAction(nameof(SelectSeats), new { id = request.ShowtimeId });
+            }
+        }
+
+        // POST: Bookings/HoldJson (AJAX Fetch API)
+        [HttpPost]
+        public async Task<IActionResult> HoldJson([FromBody] HoldSeatsRequest request)
+        {
+            int currentUser = _userContext.CurrentUserId;
+
+            if (string.IsNullOrWhiteSpace(request.SeatIdsJson) || request.SeatIdsJson == "[]")
+            {
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = 20004,
+                    ErrorMessage = "Vui lòng chọn ít nhất 1 ghế trước khi tiến hành giữ ghế."
+                });
+            }
+
+            try
+            {
+                var (bookingId, totalAmount, expiresAt) = await _cineSeatService.HoldSeatsAsync(
+                    currentUser, request.ShowtimeId, request.SeatIdsJson, request.PromoCode);
+
+                return Json(new HoldSeatsResult
+                {
+                    Success = true,
+                    BookingId = bookingId,
+                    TotalAmount = totalAmount,
+                    ExpiresAt = expiresAt
+                });
+            }
+            catch (CineSeatException cex)
+            {
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = cex.ErrorCode,
+                    ErrorMessage = cex.FriendlyMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi giữ ghế AJAX");
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = 500,
+                    ErrorMessage = "Có lỗi xảy ra trong quá trình giữ ghế. Vui lòng thử lại."
+                });
             }
         }
 

@@ -1,135 +1,127 @@
 @model CineSeat.Web.Models.Booking
 @{
-    ViewData["Title"] = $"Chi Tiết Vé #{Model.BookingId}";
+    ViewData["Title"] = $"Vé Điện Tử #{Model.BookingId} - CineSeat";
     var showtime = ViewBag.Showtime as CineSeat.Web.Models.Showtime;
+    var movie = ViewBag.Movie as CineSeat.Web.Models.Movie;
 }
 
-<nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-controller="Movies" asp-action="Index" class="text-warning text-decoration-none">Trang Chủ</a></li>
-        <li class="breadcrumb-item"><a asp-controller="Bookings" asp-action="History" class="text-warning text-decoration-none">Lịch Sử Đặt Vé</a></li>
-        <li class="breadcrumb-item active text-secondary" aria-current="page">Vé #@Model.BookingId</li>
-    </ol>
-</nav>
+<div class="container pb-5">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4 d-print-none">
+        <ol class="breadcrumb fs-8">
+            <li class="breadcrumb-item"><a asp-controller="Movies" asp-action="Index" class="text-secondary text-decoration-none">Trang Chủ</a></li>
+            <li class="breadcrumb-item"><a asp-action="History" class="text-secondary text-decoration-none">Lịch Sử Đặt Vé</a></li>
+            <li class="breadcrumb-item active text-danger fw-bold" aria-current="page">Vé Điện Tử #@Model.BookingId</li>
+        </ol>
+    </nav>
 
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <!-- Ticket Voucher Card -->
-        <div class="card bg-black border-secondary border-opacity-25 rounded-4 p-4 shadow-lg mb-4 ticket-voucher">
-            <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom border-secondary border-opacity-25">
-                <div>
-                    <span class="badge bg-warning text-dark text-uppercase fw-bold mb-1">CineSeat E-Ticket</span>
-                    <h4 class="fw-bold text-white mb-0">Mã Đơn: #@Model.BookingId</h4>
-                </div>
-                <div class="text-end">
-                    @if (Model.Status == "PAID")
-                    {
-                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 fs-7 px-3 py-2">
-                            <i class="bi bi-check-circle-fill me-1"></i> ĐÃ THANH TOÁN
-                        </span>
-                    }
-                    else if (Model.Status == "HELD")
-                    {
-                        <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-7 px-3 py-2">
-                            <i class="bi bi-hourglass-split me-1"></i> ĐANG GIỮ CHỖ
-                        </span>
-                    }
-                    else if (Model.Status == "CANCELLED")
-                    {
-                        <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 fs-7 px-3 py-2">
-                            <i class="bi bi-x-circle-fill me-1"></i> ĐÃ HỦY
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-secondary fs-7 px-3 py-2">
-                            <i class="bi bi-clock-history me-1"></i> ĐÃ HẾT HẠN
-                        </span>
-                    }
-                </div>
-            </div>
+    <!-- ACTIONS BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none" style="max-width: 540px; margin: 0 auto;">
+        <a asp-action="History" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại lịch sử
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-outline-light btn-sm rounded-pill px-3">
+            <i class="bi bi-printer me-1"></i> In Vé / Lưu PDF
+        </button>
+    </div>
 
-            <div class="row g-4 mb-4">
-                <div class="col-md-7">
-                    <h3 class="fw-bold text-warning mb-2">@Model.MovieTitle</h3>
-                    <div class="mb-2">
-                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>
-                        <span class="text-white fw-semibold">@Model.CinemaName</span> - @Model.RoomName
-                    </div>
-                    <div class="mb-2 text-secondary">
-                        <i class="bi bi-clock-fill text-warning me-1"></i>
-                        <span class="text-white fw-semibold">
-                            @(Model.StartAt.HasValue ? Model.StartAt.Value.ToString("HH:mm - dddd, dd/MM/yyyy", new System.Globalization.CultureInfo("vi-VN")) : "")
-                        </span>
-                    </div>
-                    <div class="text-secondary">
-                        <i class="bi bi-person-fill text-info me-1"></i>
-                        Khách hàng: <strong class="text-white">@Model.FullName</strong>
-                    </div>
-                </div>
-
-                <div class="col-md-5 text-center d-flex flex-column align-items-center justify-content-center p-3 bg-dark rounded-3 border border-secondary border-opacity-25">
-                    <i class="bi bi-qr-code text-warning" style="font-size: 5rem;"></i>
-                    <small class="text-secondary fs-9 mt-1">CINESEAT-PASS-@Model.BookingId</small>
-                </div>
-            </div>
-
-            <!-- Seat Breakdown -->
-            <div class="mb-4">
-                <h6 class="fw-bold text-white mb-2">Chi Tiết Ghế & Giá Vé:</h6>
-                <div class="table-responsive">
-                    <table class="table table-dark table-sm mb-0">
-                        <thead class="text-secondary fs-9 text-uppercase">
-                            <tr>
-                                <th>Vị trí ghế</th>
-                                <th>Loại ghế</th>
-                                <th class="text-end">Đơn giá phân bổ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var s in Model.Seats)
-                            {
-                                <tr>
-                                    <td class="fw-bold text-warning">Ghế @s.SeatCode</td>
-                                    <td>
-                                        <span class="badge @(s.SeatType == "VIP" ? "bg-danger" : "bg-primary") fs-9">@s.SeatType</span>
-                                    </td>
-                                    <td class="text-end fw-semibold text-white">@s.UnitPrice.ToString("#,##0") ₫</td>
-                                </tr>
-                            }
-                        </tbody>
-                        <tfoot class="border-top border-secondary">
-                            <tr>
-                                <th colspan="2" class="text-white">Tổng cộng:</th>
-                                <th class="text-end text-warning fs-5">@Model.TotalAmount.ToString("#,##0") ₫</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 pt-3 border-top border-secondary border-opacity-25">
-                <a asp-action="History" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-1"></i> Quay lại lịch sử
-                </a>
-
-                @if (Model.Status == "HELD")
+    <!-- DIGITAL E-TICKET VOUCHER -->
+    <div class="ticket-wrapper">
+        <!-- Top Banner Header -->
+        <div class="p-4 bg-surface border-bottom border-cs text-center">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-white fs-6">Cine<span class="text-danger">Seat</span> Cinema</span>
+                
+                @if (Model.Status == "PAID")
                 {
-                    <div class="d-flex gap-2">
-                        <form asp-action="CancelBooking" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="bookingId" value="@Model.BookingId" />
-                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Bạn có chắc chắn muốn hủy đơn giữ ghế này?')">
-                                <i class="bi bi-x-circle me-1"></i> Hủy Giữ Ghế
-                            </button>
-                        </form>
-                        <a asp-action="Checkout" asp-route-id="@Model.BookingId" class="btn btn-warning fw-bold">
-                            <i class="bi bi-credit-card me-1"></i> Đến Trang Thanh Toán
-                        </a>
-                    </div>
+                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 fs-9">
+                        <i class="bi bi-check-circle-fill me-1"></i>VÉ HỢP LỆ (PAID)
+                    </span>
+                }
+                else if (Model.Status == "HELD")
+                {
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-9">
+                        ĐANG GIỮ GHẾ (HELD)
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50 fs-9">
+                        @Model.Status
+                    </span>
                 }
             </div>
+
+            <h4 class="fw-extrabold text-white mb-1">@Model.MovieTitle</h4>
+            <div class="text-secondary fs-8">
+                <i class="bi bi-geo-alt text-danger me-1"></i>@Model.CinemaName • @Model.RoomName
+            </div>
+        </div>
+
+        <!-- Ticket Body Details -->
+        <div class="p-4">
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <small class="text-secondary fs-9 d-block">Mã đơn đặt vé</small>
+                    <span class="fw-bold text-white fs-6">#@Model.BookingId</span>
+                </div>
+                <div class="col-6 text-end">
+                    <small class="text-secondary fs-9 d-block">Khách hàng</small>
+                    <span class="fw-bold text-white fs-7">@Model.FullName</span>
+                </div>
+                <div class="col-6">
+                    <small class="text-secondary fs-9 d-block">Giờ bắt đầu chiếu</small>
+                    <span class="fw-bold text-gold fs-5">@Model.StartAt?.ToString("HH:mm")</span>
+                    <small class="text-secondary fs-9 d-block">@Model.StartAt?.ToString("dd/MM/yyyy")</small>
+                </div>
+                <div class="col-6 text-end">
+                    <small class="text-secondary fs-9 d-block">Số lượng vé</small>
+                    <span class="badge bg-danger rounded-pill fs-8">@Model.Seats.Count vé</span>
+                </div>
+            </div>
+
+            <!-- Ghế chi tiết -->
+            <div class="p-3 bg-surface rounded-3 border-cs mb-3">
+                <small class="text-secondary fs-9 d-block mb-1">Ghế đã mua:</small>
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var s in Model.Seats)
+                    {
+                        <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 p-2 fs-8">
+                            <i class="bi bi-ticket me-1"></i>@s.SeatCode (@s.SeatType) - @s.UnitPrice.ToString("#,##0") ₫
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-3 border-top border-cs">
+                <span class="text-secondary fw-semibold">Tổng thanh toán:</span>
+                <span class="fs-3 fw-extrabold text-gold">@Model.TotalAmount.ToString("#,##0") ₫</span>
+            </div>
+
+            @if (Model.PaidAt.HasValue)
+            {
+                <div class="text-secondary fs-9 text-end mt-1">
+                    Thời điểm thanh toán: @Model.PaidAt.Value.ToString("HH:mm:ss dd/MM/yyyy")
+                </div>
+            }
+        </div>
+
+        <!-- Perforation -->
+        <div class="ticket-perforation">
+            <div class="ticket-notch-left"></div>
+            <div class="ticket-dash"></div>
+            <div class="ticket-notch-right"></div>
+        </div>
+
+        <!-- QR Code Ticket Verification -->
+        <div class="p-4 pt-2 text-center bg-surface">
+            <div class="p-3 bg-white rounded-3 d-inline-block shadow mb-2">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=CINESEAT-TICKET-@Model.BookingId-@Model.UserId-@Model.TotalAmount" 
+                     alt="E-Ticket QR" width="120" height="120"
+                     onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+            </div>
+            <div class="text-white fw-bold fs-7 tracking-wider">MÃ VÉ: CS-@Model.BookingId-@Model.ShowtimeId</div>
+            <div class="text-secondary fs-9">Xuất trình mã QR này tại quầy soát vé rạp chiếu phim để vào phòng chiếu.</div>
         </div>
     </div>
 </div>

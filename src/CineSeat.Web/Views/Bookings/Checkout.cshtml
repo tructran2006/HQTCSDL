@@ -1,145 +1,195 @@
 @model CineSeat.Web.Models.CheckoutViewModel
 @{
-    ViewData["Title"] = $"Thanh Toán Đơn #{Model.Booking.BookingId}";
+    ViewData["Title"] = $"Thanh Toán Đơn Vé #{Model.Booking.BookingId}";
 }
 
-<nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-controller="Movies" asp-action="Index" class="text-warning text-decoration-none">Trang Chủ</a></li>
-        <li class="breadcrumb-item"><a asp-controller="Bookings" asp-action="History" class="text-warning text-decoration-none">Lịch Sử Đặt Vé</a></li>
-        <li class="breadcrumb-item active text-secondary" aria-current="page">Thanh Toán Đơn #@Model.Booking.BookingId</li>
-    </ol>
-</nav>
+<div class="container pb-5">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb fs-8">
+            <li class="breadcrumb-item"><a asp-controller="Movies" asp-action="Index" class="text-secondary text-decoration-none">Trang Chủ</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Bookings" asp-action="SelectSeats" asp-route-id="@Model.Showtime.ShowtimeId" class="text-secondary text-decoration-none">Sơ Đồ Ghế</a></li>
+            <li class="breadcrumb-item active text-danger fw-bold" aria-current="page">Thanh Toán Đơn Vé #@Model.Booking.BookingId</li>
+        </ol>
+    </nav>
 
-<div class="row g-4 justify-content-center">
-    <div class="col-lg-8">
-        <!-- Countdown Timer Banner -->
-        <div class="card bg-black border-secondary border-opacity-25 rounded-4 p-4 text-center mb-4 shadow">
-            <h5 class="text-secondary mb-2 text-uppercase fs-8 tracking-wider">Thời Gian Giữ Chỗ Còn Lại</h5>
-            <div id="countdownBox" class="countdown-box @(Model.RemainingSeconds <= 60 ? "urgent" : "")">
-                <span id="countdownMinutes">--</span>:<span id="countdownSeconds">--</span>
-            </div>
-            <div class="mt-2 text-secondary fs-8">
-                <i class="bi bi-info-circle me-1"></i> Sau 5 phút, thủ tục <code>PR_EXPIRE_HOLDS</code> sẽ tự động hủy đơn và thu hồi ghế.
+    <!-- ĐỒNG HỒ ĐẾM NGƯỢC 5 PHÚT GIỮ CHỖ -->
+    <div class="card bg-card border-cs rounded-4 p-4 mb-4 text-center shadow-lg">
+        <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center gap-3">
+            <span class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger">
+                <i class="bi bi-clock-history fs-3"></i>
+            </span>
+            <div>
+                <div class="text-secondary small fw-semibold text-uppercase">Thời gian còn lại để hoàn tất thanh toán (Hạn 5 phút)</div>
+                <div class="display-5 fw-extrabold text-gold tracking-tight" id="countdownClock">05:00</div>
+                <small class="text-secondary fs-9">Hạn chót CSDL: @Model.Booking.ExpiresAt.ToString("HH:mm:ss dd/MM/yyyy")</small>
             </div>
         </div>
+    </div>
 
-        <!-- Order Summary Card -->
-        <div class="card bg-black border-secondary border-opacity-25 rounded-4 p-4 mb-4 shadow-sm">
-            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary border-opacity-25">
-                <h5 class="fw-bold text-white mb-0 d-flex align-items-center gap-2">
-                    <i class="bi bi-ticket-detailed text-warning"></i> Chi Tiết Đơn Đặt Vé #@Model.Booking.BookingId
-                </h5>
-                <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50">
-                    Trạng thái: @Model.Booking.Status
-                </span>
-            </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <small class="text-secondary d-block">Phim:</small>
-                    <span class="fw-bold text-white fs-5">@Model.Booking.MovieTitle</span>
-                </div>
-                <div class="col-md-6">
-                    <small class="text-secondary d-block">Khách hàng:</small>
-                    <span class="fw-semibold text-light">@Model.Booking.FullName</span>
-                </div>
-                <div class="col-md-6">
-                    <small class="text-secondary d-block">Cụm rạp & Phòng:</small>
-                    <span class="text-light">@Model.Booking.CinemaName - @Model.Booking.RoomName</span>
-                </div>
-                <div class="col-md-6">
-                    <small class="text-secondary d-block">Suất chiếu:</small>
-                    <span class="text-warning fw-semibold">
-                        @(Model.Booking.StartAt.HasValue ? Model.Booking.StartAt.Value.ToString("HH:mm - dddd, dd/MM/yyyy", new System.Globalization.CultureInfo("vi-VN")) : "")
+    <div class="row g-4 justify-content-center">
+        <!-- CỘT TRÁI: DIGITAL TICKET PREVIEW -->
+        <div class="col-lg-5">
+            <div class="ticket-wrapper">
+                <!-- Ticket Header -->
+                <div class="p-4 bg-danger bg-opacity-10 border-bottom border-cs text-center">
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-9 text-uppercase mb-2">
+                        Đang Giữ Chỗ (HELD)
                     </span>
-                </div>
-                <div class="col-12">
-                    <small class="text-secondary d-block mb-1">Ghế đã giữ:</small>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var s in Model.Booking.Seats)
-                        {
-                            <span class="badge @(s.SeatType == "VIP" ? "bg-danger" : "bg-primary") px-3 py-2 fs-7">
-                                Ghế @s.SeatCode (@s.SeatType) - @s.UnitPrice.ToString("#,##0") ₫
-                            </span>
-                        }
+                    <h5 class="fw-extrabold text-white mb-0 text-truncate">@Model.Movie.Title</h5>
+                    <div class="text-secondary fs-8 mt-1">
+                        <i class="bi bi-camera-reels me-1 text-danger"></i>@Model.Showtime.CinemaName • @Model.Showtime.RoomName
                     </div>
                 </div>
-            </div>
 
-            <div class="p-3 bg-dark rounded-3 d-flex justify-content-between align-items-center">
-                <span class="fs-5 fw-bold text-white">Tổng tiền cần thanh toán:</span>
-                <span class="fs-3 fw-bold text-warning">@Model.Booking.TotalAmount.ToString("#,##0") ₫</span>
+                <!-- Ticket Body -->
+                <div class="p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <small class="text-secondary fs-9 d-block">Mã đơn hàng</small>
+                            <span class="fw-bold text-white fs-6">#@Model.Booking.BookingId</span>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-secondary fs-9 d-block">Khách hàng</small>
+                            <span class="fw-bold text-white fs-7 text-truncate d-block">@Model.Booking.FullName</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-secondary fs-9 d-block">Suất chiếu</small>
+                            <span class="fw-bold text-white fs-7">@Model.Showtime.StartAt.ToString("HH:mm")</span>
+                            <small class="text-secondary fs-9 d-block">@Model.Showtime.StartAt.ToString("dd/MM/yyyy")</small>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-secondary fs-9 d-block">Số lượng ghế</small>
+                            <span class="badge bg-danger rounded-pill fs-8">@Model.Booking.Seats.Count ghế</span>
+                        </div>
+                    </div>
+
+                    <!-- Ghế chi tiết -->
+                    <div class="p-3 bg-surface rounded-3 border-cs mb-3">
+                        <small class="text-secondary fs-9 d-block mb-1">Danh sách ghế đặt:</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var s in Model.Booking.Seats)
+                            {
+                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 p-2 fs-8">
+                                    <i class="bi bi-ticket me-1"></i>@s.SeatCode (@s.SeatType)
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Booking.PromoCode))
+                    {
+                        <div class="d-flex justify-content-between align-items-center fs-8 text-success mb-2">
+                            <span>Mã khuyến mãi áp dụng:</span>
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">
+                                @Model.Booking.PromoCode
+                            </span>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top border-cs">
+                        <span class="text-secondary fw-semibold">Tổng tiền thanh toán:</span>
+                        <span class="fs-3 fw-extrabold text-gold">@Model.Booking.TotalAmount.ToString("#,##0") ₫</span>
+                    </div>
+                </div>
+
+                <!-- Perforation Line -->
+                <div class="ticket-perforation">
+                    <div class="ticket-notch-left"></div>
+                    <div class="ticket-dash"></div>
+                    <div class="ticket-notch-right"></div>
+                </div>
+
+                <!-- Barcode & Simulation QR Preview -->
+                <div class="p-4 pt-2 text-center bg-surface">
+                    <div class="p-3 bg-white rounded-3 d-inline-block shadow-sm mb-2">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=CINESEAT-BOOKING-@Model.Booking.BookingId-@Model.Booking.TotalAmount" 
+                             alt="QR Code" width="100" height="100" 
+                             onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                    </div>
+                    <div class="text-secondary fs-9">Mã thanh toán tự động: <code>CS-ORD-@Model.Booking.BookingId</code></div>
+                </div>
             </div>
         </div>
 
-        <!-- Payment Method Selection -->
-        <div class="card bg-black border-secondary border-opacity-25 rounded-4 p-4 shadow-sm mb-4">
-            <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
-                <i class="bi bi-wallet2 text-warning"></i> Phương Thức Thanh Toán Mô Phỏng (DEMO)
-            </h5>
+        <!-- CỘT PHẢI: CHỌN PHƯƠNG THỨC THANH TOÁN MÔ PHỎNG -->
+        <div class="col-lg-6">
+            <div class="card bg-card border-cs rounded-4 p-4 shadow-sm h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <h5 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                        <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-credit-card-2-front-fill"></i></span>
+                        Phương Thức Thanh Toán Thử Nghiệm
+                    </h5>
+                    <p class="text-secondary small mb-4">
+                        Chọn một trong các phương thức thanh toán mô phỏng bên dưới để thực thi thủ tục <code>PKG_BOOKING.PR_CONFIRM</code>:
+                    </p>
 
-            <form asp-controller="Bookings" asp-action="ConfirmPayment" method="post" id="paymentForm">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="bookingId" value="@Model.Booking.BookingId" />
+                    <!-- Form Thanh Toán -->
+                    <form id="paymentForm" asp-controller="Bookings" asp-action="ConfirmPayment" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="bookingId" value="@Model.Booking.BookingId" />
 
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label class="card h-100 p-3 bg-dark border-secondary border-opacity-50 rounded-3 cursor-pointer payment-option-card">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <input type="radio" name="method" value="DEMO_QR" checked class="form-check-input mt-0" />
-                                <span class="fw-bold text-white">DEMO_QR</span>
-                            </div>
-                            <small class="text-secondary fs-8">Mô phỏng quét mã VietQR ngân hàng.</small>
-                            <div class="mt-2 text-center text-warning fs-3">
-                                <i class="bi bi-qr-code"></i>
-                            </div>
-                        </label>
-                    </div>
+                        <div class="d-flex flex-column gap-3 mb-4">
+                            <!-- DEMO_QR -->
+                            <label class="p-3 bg-surface rounded-3 border-cs d-flex align-items-center gap-3 cursor-pointer hover-border-danger">
+                                <input type="radio" name="method" value="DEMO_QR" checked class="form-check-input mt-0 fs-5" />
+                                <div class="p-2 rounded bg-danger bg-opacity-25 text-danger">
+                                    <i class="bi bi-qr-code-scan fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-white fs-7">Quét Mã QR Ngân Hàng / Ví Điện Tử (DEMO_QR)</div>
+                                    <small class="text-secondary fs-8">Mô phỏng thanh toán tức thì qua mã QR tự động</small>
+                                </div>
+                                <span class="badge bg-success bg-opacity-25 text-success fs-9">Khuyên dùng</span>
+                            </label>
 
-                    <div class="col-md-4">
-                        <label class="card h-100 p-3 bg-dark border-secondary border-opacity-50 rounded-3 cursor-pointer payment-option-card">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <input type="radio" name="method" value="DEMO_CARD" class="form-check-input mt-0" />
-                                <span class="fw-bold text-white">DEMO_CARD</span>
-                            </div>
-                            <small class="text-secondary fs-8">Mô phỏng thẻ tín dụng / ghi nợ quốc tế.</small>
-                            <div class="mt-2 text-center text-info fs-3">
-                                <i class="bi bi-credit-card-2-front"></i>
-                            </div>
-                        </label>
-                    </div>
+                            <!-- DEMO_CARD -->
+                            <label class="p-3 bg-surface rounded-3 border-cs d-flex align-items-center gap-3 cursor-pointer hover-border-danger">
+                                <input type="radio" name="method" value="DEMO_CARD" class="form-check-input mt-0 fs-5" />
+                                <div class="p-2 rounded bg-info bg-opacity-25 text-info">
+                                    <i class="bi bi-credit-card fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-white fs-7">Thẻ Tín Dụng / ATM Quốc Tế (DEMO_CARD)</div>
+                                    <small class="text-secondary fs-8">Visa, Mastercard, JCB mô phỏng cổng thanh toán</small>
+                                </div>
+                            </label>
 
-                    <div class="col-md-4">
-                        <label class="card h-100 p-3 bg-dark border-secondary border-opacity-50 rounded-3 cursor-pointer payment-option-card">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <input type="radio" name="method" value="DEMO_CASH" class="form-check-input mt-0" />
-                                <span class="fw-bold text-white">DEMO_CASH</span>
-                            </div>
-                            <small class="text-secondary fs-8">Mô phỏng thanh toán tiền mặt tại quầy vé.</small>
-                            <div class="mt-2 text-center text-success fs-3">
-                                <i class="bi bi-cash-stack"></i>
-                            </div>
-                        </label>
-                    </div>
+                            <!-- DEMO_CASH -->
+                            <label class="p-3 bg-surface rounded-3 border-cs d-flex align-items-center gap-3 cursor-pointer hover-border-danger">
+                                <input type="radio" name="method" value="DEMO_CASH" class="form-check-input mt-0 fs-5" />
+                                <div class="p-2 rounded bg-warning bg-opacity-25 text-warning">
+                                    <i class="bi bi-cash-coin fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-white fs-7">Thanh Toán Tại Quầy Vé (DEMO_CASH)</div>
+                                    <small class="text-secondary fs-8">Nhận vé và thanh toán tiền mặt trực tiếp tại rạp</small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Nút Xác Nhận Thanh Toán -->
+                        <button type="submit" id="confirmPaymentBtn" class="btn btn-cinema btn-lg w-100 rounded-pill py-3 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-lg mb-3">
+                            <i class="bi bi-check2-circle fs-5"></i>
+                            <span>Xác Nhận Thanh Toán (@Model.Booking.TotalAmount.ToString("#,##0") ₫)</span>
+                        </button>
+                    </form>
                 </div>
 
-                <div class="d-flex flex-column flex-sm-row gap-3">
-                    <button type="submit" id="btnConfirmPay" class="btn btn-warning fw-bold py-3 flex-grow-1 shadow d-flex align-items-center justify-content-center gap-2">
-                        <i class="bi bi-check-circle-fill"></i> Xác Nhận Thanh Toán Ngay
-                    </button>
+                <!-- Nút Hủy Đơn Giữ Ghế -->
+                <div class="pt-3 border-top border-cs text-center">
+                    <form asp-controller="Bookings" asp-action="CancelBooking" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn hủy giữ ghế? Các ghế sẽ được giải phóng ngay lập tức.');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="bookingId" value="@Model.Booking.BookingId" />
+                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+                            <i class="bi bi-x-circle me-1"></i> Hủy Đơn Giữ Chỗ (PR_CANCEL)
+                        </button>
+                    </form>
+                    <div class="text-secondary fs-9 mt-2">
+                        Gọi thủ tục <code>PKG_BOOKING.PR_CANCEL</code> và hoàn trả ghế về <code>AVAILABLE</code>
+                    </div>
                 </div>
-            </form>
-
-            <!-- Cancel Button -->
-            <form asp-controller="Bookings" asp-action="CancelBooking" method="post" class="mt-3">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="bookingId" value="@Model.Booking.BookingId" />
-                <button type="submit" class="btn btn-outline-danger w-100 fw-semibold" 
-                        onclick="return confirm('Bạn có chắc chắn muốn hủy giữ ghế cho đơn hàng này? Ghế sẽ lập tức được trả về trạng thái AVAILABLE.')">
-                    <i class="bi bi-x-circle me-1"></i> Hủy Giữ Ghế (Hoàn Ghế Trống)
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -147,37 +197,35 @@
 @section Scripts {
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        let remainingSeconds = @Model.RemainingSeconds;
-        const minutesSpan = document.getElementById("countdownMinutes");
-        const secondsSpan = document.getElementById("countdownSeconds");
-        const countdownBox = document.getElementById("countdownBox");
-        const payBtn = document.getElementById("btnConfirmPay");
+        // Đồng hồ đếm ngược thời gian thực
+        const expiresAt = new Date("@Model.Booking.ExpiresAt.ToString("yyyy-MM-ddTHH:mm:ss")").getTime();
+        const clockEl = document.getElementById("countdownClock");
+        const confirmBtn = document.getElementById("confirmPaymentBtn");
 
-        function updateTimer() {
-            if (remainingSeconds <= 0) {
-                minutesSpan.innerText = "00";
-                secondsSpan.innerText = "00";
-                countdownBox.classList.add("urgent");
-                payBtn.disabled = true;
-                payBtn.innerHTML = `<i class="bi bi-clock-history"></i> Đã Hết 5 Phút Giữ Ghế`;
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const diff = expiresAt - now;
+
+            if (diff <= 0) {
+                clockEl.textContent = "00:00 (HẾT HẠN)";
+                clockEl.classList.remove("text-gold");
+                clockEl.classList.add("text-danger");
+                if (confirmBtn) {
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<i class="bi bi-hourglass-bottom me-2"></i> Đã Hết 5 Phút Giữ Ghế!';
+                }
+                alert("Đã hết thời gian 5 phút giữ chỗ! Đơn hàng đã hết hạn theo quy tắc ORA-20008.");
                 return;
             }
 
-            const m = Math.floor(remainingSeconds / 60);
-            const s = remainingSeconds % 60;
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            minutesSpan.innerText = m.toString().padStart(2, "0");
-            secondsSpan.innerText = s.toString().padStart(2, "0");
-
-            if (remainingSeconds <= 60) {
-                countdownBox.classList.add("urgent");
-            }
-
-            remainingSeconds--;
-            setTimeout(updateTimer, 1000);
+            clockEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
-        updateTimer();
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
     });
 </script>
 }

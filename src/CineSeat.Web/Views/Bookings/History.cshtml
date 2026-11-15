@@ -1,127 +1,148 @@
 @model List<CineSeat.Web.Models.Booking>
 @{
-    ViewData["Title"] = "Lịch Sử Đặt Vé";
-    var currentUser = ViewBag.CurrentUser as CineSeat.Web.Models.AppUser ?? new CineSeat.Web.Models.AppUser();
+    ViewData["Title"] = "Vé Của Tôi - Lịch Sử Đặt Vé";
+    var currentUser = ViewBag.CurrentUser as CineSeat.Web.Models.AppUser;
 }
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-    <div>
-        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
-            <i class="bi bi-clock-history text-warning"></i> Lịch Sử Đặt Vé
-        </h3>
-        <p class="text-secondary mb-0">
-            Tài khoản: <strong class="text-white">@currentUser.FullName</strong> (@currentUser.Email) &bull; Dữ liệu từ View <code>V_BOOKING_REPORT</code>
-        </p>
-    </div>
-    <a asp-controller="Movies" asp-action="Index" class="btn btn-warning fw-semibold shadow-sm">
-        <i class="bi bi-plus-circle me-1"></i> Đặt Vé Mới
-    </a>
-</div>
+<div class="container pb-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <h3 class="fw-extrabold text-white mb-1 d-flex align-items-center gap-2">
+                <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-clock-history"></i></span>
+                Lịch Sử Đặt Vé Của Bạn
+            </h3>
+            <p class="text-secondary small mb-0">
+                Hiển thị vé của tài khoản: <strong class="text-white">@currentUser?.FullName</strong> (@currentUser?.Email)
+            </p>
+        </div>
 
-@if (Model != null && Model.Any())
-{
-    <div class="card bg-black border-secondary border-opacity-25 rounded-4 overflow-hidden shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover align-middle mb-0">
-                <thead class="border-secondary border-opacity-50 text-secondary fs-8 text-uppercase">
-                    <tr>
-                        <th class="ps-4">Mã Đơn</th>
-                        <th>Phim & Rạp</th>
-                        <th>Suất Chiếu</th>
-                        <th>Ghế Đã Đặt</th>
-                        <th>Tổng Tiền</th>
-                        <th>Trạng Thái</th>
-                        <th>Thời Gian Đặt</th>
-                        <th class="text-end pe-4">Thao Tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var b in Model)
-                    {
-                        <tr>
-                            <td class="ps-4 fw-bold text-warning">#@b.BookingId</td>
-                            <td>
-                                <div class="fw-bold text-white">@b.MovieTitle</div>
-                                <small class="text-secondary">@b.CinemaName - @b.RoomName</small>
-                            </td>
-                            <td>
-                                @if (b.StartAt.HasValue)
-                                {
-                                    <span class="text-white fw-semibold">@b.StartAt.Value.ToString("HH:mm")</span>
-                                    <small class="text-secondary d-block">@b.StartAt.Value.ToString("dd/MM/yyyy")</small>
-                                }
-                            </td>
-                            <td>
-                                <div class="d-flex flex-wrap gap-1">
+        <a asp-controller="Movies" asp-action="Index" class="btn btn-cinema btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i>
+            <span>Đặt Thêm Vé Mới</span>
+        </a>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="card bg-card border-cs rounded-4 p-5 text-center shadow-sm">
+            <i class="bi bi-ticket-perforated fs-1 text-secondary d-block mb-3"></i>
+            <h5 class="text-white">Bạn chưa có đơn đặt vé nào!</h5>
+            <p class="text-secondary small mb-4">Hãy chọn phim yêu thích và trải nghiệm đặt vé trực tuyến ngay bây giờ.</p>
+            <div>
+                <a asp-controller="Movies" asp-action="Index" class="btn btn-cinema btn-sm rounded-pill px-4 py-2">
+                    Khám phá phim đang chiếu
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var b in Model)
+            {
+                <div class="col-12">
+                    <div class="card bg-card border-cs rounded-4 p-4 shadow-sm hover-border-danger transition-all">
+                        <div class="row align-items-center g-3">
+                            <!-- Movie Poster -->
+                            <div class="col-auto">
+                                <img src="/images/@(string.IsNullOrEmpty(b.PosterFile) ? "default-poster.jpg" : b.PosterFile)" 
+                                     alt="@b.MovieTitle" 
+                                     class="rounded-3 shadow" style="width: 70px; height: 105px; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                            </div>
+
+                            <!-- Info -->
+                            <div class="col">
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                    <span class="badge bg-dark border-cs text-white fs-9">#Đơn: @b.BookingId</span>
+                                    
+                                    @if (b.Status == "PAID")
+                                    {
+                                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 fs-9">
+                                            <i class="bi bi-check-circle-fill me-1"></i>ĐÃ THANH TOÁN (PAID)
+                                        </span>
+                                    }
+                                    else if (b.Status == "HELD")
+                                    {
+                                        <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-9">
+                                            <i class="bi bi-hourglass-split me-1"></i>ĐANG GIỮ GHẾ (HELD)
+                                        </span>
+                                    }
+                                    else if (b.Status == "CANCELLED")
+                                    {
+                                        <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50 fs-9">
+                                            <i class="bi bi-x-circle me-1"></i>ĐÃ HỦY (CANCELLED)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 fs-9">
+                                            <i class="bi bi-exclamation-circle me-1"></i>HẾT HẠN (EXPIRED)
+                                        </span>
+                                    }
+
+                                    <small class="text-secondary fs-9">
+                                        Đặt lúc: @b.CreatedAt.ToString("HH:mm dd/MM/yyyy")
+                                    </small>
+                                </div>
+
+                                <h5 class="fw-bold text-white mb-1">@b.MovieTitle</h5>
+
+                                <div class="text-secondary small mb-2 d-flex flex-wrap gap-2">
+                                    <span><i class="bi bi-geo-alt me-1 text-danger"></i>@b.CinemaName • @b.RoomName</span>
+                                    <span>•</span>
+                                    <span><i class="bi bi-clock me-1 text-gold"></i>@b.StartAt?.ToString("HH:mm dd/MM/yyyy")</span>
+                                </div>
+
+                                <!-- Danh sách ghế -->
+                                <div class="d-flex flex-wrap gap-1 align-items-center">
+                                    <small class="text-secondary fs-9 me-1">Ghế (@b.Seats.Count):</small>
                                     @foreach (var s in b.Seats)
                                     {
-                                        <span class="badge @(s.SeatType == "VIP" ? "bg-danger" : "bg-primary") fs-9">
-                                            @s.SeatCode
+                                        <span class="badge bg-surface border-cs text-light fs-9">
+                                            @s.SeatCode (@s.SeatType)
                                         </span>
                                     }
                                 </div>
-                            </td>
-                            <td class="fw-bold text-warning">@b.TotalAmount.ToString("#,##0") ₫</td>
-                            <td>
-                                @if (b.Status == "PAID")
-                                {
-                                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">
-                                        <i class="bi bi-check-circle me-1"></i>ĐÃ THANH TOÁN
-                                    </span>
-                                }
-                                else if (b.Status == "HELD")
-                                {
-                                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50">
-                                        <i class="bi bi-hourglass-split me-1"></i>ĐANG GIỮ CHỖ
-                                    </span>
-                                }
-                                else if (b.Status == "CANCELLED")
-                                {
-                                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50">
-                                        <i class="bi bi-x-circle me-1"></i>ĐÃ HỦY
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">
-                                        <i class="bi bi-clock me-1"></i>HẾT HẠN
-                                    </span>
-                                }
-                            </td>
-                            <td class="text-secondary fs-8">
-                                @b.CreatedAt.ToString("HH:mm dd/MM/yyyy")
-                            </td>
-                            <td class="text-end pe-4">
-                                @if (b.Status == "HELD")
-                                {
-                                    <a asp-action="Checkout" asp-route-id="@b.BookingId" class="btn btn-warning btn-sm fw-bold">
-                                        Thanh Toán
-                                    </a>
-                                }
-                                else
-                                {
-                                    <a asp-action="Detail" asp-route-id="@b.BookingId" class="btn btn-outline-secondary btn-sm">
-                                        Chi Tiết
-                                    </a>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                            </div>
+
+                            <!-- Total & Action Buttons -->
+                            <div class="col-md-auto text-md-end pt-3 pt-md-0 border-top border-top-md-0 border-cs">
+                                <small class="text-secondary fs-9 d-block">Tổng tiền</small>
+                                <div class="fs-4 fw-extrabold text-gold mb-2">@b.TotalAmount.ToString("#,##0") ₫</div>
+
+                                <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                                    @if (b.Status == "PAID")
+                                    {
+                                        <a asp-action="Detail" asp-route-id="@b.BookingId" class="btn btn-outline-light btn-sm rounded-pill px-3">
+                                            <i class="bi bi-ticket-perforated me-1"></i>Xem Vé Điện Tử
+                                        </a>
+                                    }
+                                    else if (b.Status == "HELD")
+                                    {
+                                        <a asp-action="Checkout" asp-route-id="@b.BookingId" class="btn btn-cinema btn-sm rounded-pill px-3">
+                                            <i class="bi bi-credit-card me-1"></i>Tiếp Tục Thanh Toán
+                                        </a>
+                                        <form asp-action="CancelBooking" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn hủy giữ ghế?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="bookingId" value="@b.BookingId" />
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                                                Hủy
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <a asp-action="Detail" asp-route-id="@b.BookingId" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                                            Chi Tiết
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
-    </div>
-}
-else
-{
-    <div class="card bg-black border-secondary border-opacity-25 rounded-4 p-5 text-center text-secondary shadow-sm">
-        <i class="bi bi-ticket-perforated fs-1 d-block mb-3 opacity-25"></i>
-        <h5>Bạn chưa có lịch sử đặt vé nào.</h5>
-        <p>Hãy khám phá các bộ phim hot đang chiếu và trải nghiệm quy trình đặt vé ngay bây giờ!</p>
-        <div>
-            <a asp-controller="Movies" asp-action="Index" class="btn btn-warning fw-semibold mt-2">
-                <i class="bi bi-film me-1"></i> Đặt Vé Ngay
-            </a>
-        </div>
-    </div>
-}
+    }
+</div>

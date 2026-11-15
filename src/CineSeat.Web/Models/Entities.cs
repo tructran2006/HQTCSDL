@@ -10,6 +10,7 @@ namespace CineSeat.Web.Models
         public string? Synopsis { get; set; }
         public string? PosterFile { get; set; }
         public bool IsActive { get; set; } = true;
+        public int ShowtimeCount { get; set; }
     }
 
     public class Cinema
@@ -17,6 +18,7 @@ namespace CineSeat.Web.Models
         public int CinemaId { get; set; }
         public string CinemaName { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
+        public int RoomCount { get; set; }
     }
 
     public class Room
@@ -24,6 +26,8 @@ namespace CineSeat.Web.Models
         public int RoomId { get; set; }
         public int CinemaId { get; set; }
         public string RoomName { get; set; } = string.Empty;
+        public string CinemaName { get; set; } = string.Empty;
+        public int SeatCount { get; set; } = 40;
     }
 
     public class Seat
@@ -40,13 +44,19 @@ namespace CineSeat.Web.Models
         public int ShowtimeId { get; set; }
         public int MovieId { get; set; }
         public string MovieTitle { get; set; } = string.Empty;
+        public string? PosterFile { get; set; }
+        public string AgeRating { get; set; } = "P";
+        public int DurationMin { get; set; }
+        public int RoomId { get; set; }
+        public string RoomName { get; set; } = string.Empty;
+        public int CinemaId { get; set; }
+        public string CinemaName { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
         public DateTime StartAt { get; set; }
         public DateTime EndAt { get; set; }
         public decimal BasePrice { get; set; }
-        public string RoomName { get; set; } = string.Empty;
-        public string CinemaName { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
         public int AvailableSeats { get; set; }
+        public int TotalSeats { get; set; } = 40;
         public bool IsActive { get; set; } = true;
     }
 
@@ -86,11 +96,15 @@ namespace CineSeat.Web.Models
         public int BookingId { get; set; }
         public int UserId { get; set; }
         public string FullName { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
         public int ShowtimeId { get; set; }
         public string MovieTitle { get; set; } = string.Empty;
+        public string? PosterFile { get; set; }
         public string? RoomName { get; set; }
         public string? CinemaName { get; set; }
         public DateTime? StartAt { get; set; }
+        public DateTime? EndAt { get; set; }
         public int? PromotionId { get; set; }
         public string? PromoCode { get; set; }
         public string Status { get; set; } = "HELD"; // HELD, PAID, CANCELLED, EXPIRED
@@ -121,6 +135,8 @@ namespace CineSeat.Web.Models
         public string? NewStatus { get; set; }
         public DateTime ChangedAt { get; set; }
         public string? Description { get; set; }
+        public string? CustomerName { get; set; }
+        public string? MovieTitle { get; set; }
     }
 
     public class Payment
