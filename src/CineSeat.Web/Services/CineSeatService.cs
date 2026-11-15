@@ -18,29 +18,38 @@ namespace CineSeat.Web.Services
             _logger = logger;
         }
 
-        #region Phim & Suất chiếu
+        #region Phim & Rạp & Suất chiếu
 
-        public async Task<List<Movie>> GetMoviesAsync(string? search = null, string? genre = null)
+        public async Task<List<Movie>> GetMoviesAsync(string? search = null, string? genre = null, string? ageRating = null)
         {
             var movies = new List<Movie>();
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
 
-            var sql = "SELECT movie_id, title, genre, duration_min, age_rating, synopsis, poster_file, is_active FROM movies WHERE is_active = 1";
+            var sql = @"SELECT m.movie_id, m.title, m.genre, m.duration_min, m.age_rating, m.synopsis, m.poster_file, m.is_active,
+                               (SELECT COUNT(*) FROM showtimes s WHERE s.movie_id = m.movie_id AND s.is_active = 1 AND s.start_at > LOCALTIMESTAMP) AS showtime_count
+                        FROM movies m
+                        WHERE m.is_active = 1";
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                sql += " AND (LOWER(title) LIKE :p_search OR LOWER(synopsis) LIKE :p_search)";
+                sql += " AND (LOWER(m.title) LIKE :p_search OR LOWER(m.synopsis) LIKE :p_search)";
                 cmd.Parameters.Add("p_search", OracleDbType.NVarchar2, $"%{search.Trim().ToLower()}%", ParameterDirection.Input);
             }
 
             if (!string.IsNullOrWhiteSpace(genre))
             {
-                sql += " AND LOWER(genre) LIKE :p_genre";
+                sql += " AND LOWER(m.genre) LIKE :p_genre";
                 cmd.Parameters.Add("p_genre", OracleDbType.NVarchar2, $"%{genre.Trim().ToLower()}%", ParameterDirection.Input);
             }
 
-            sql += " ORDER BY movie_id";
+            if (!string.IsNullOrWhiteSpace(ageRating) && ageRating != "ALL")
+            {
+                sql += " AND UPPER(m.age_rating) = :p_rating";
+                cmd.Parameters.Add("p_rating", OracleDbType.Varchar2, ageRating.Trim().ToUpper(), ParameterDirection.Input);
+            }
+
+            sql += " ORDER BY m.movie_id";
             cmd.CommandText = sql;
 
             using var reader = await cmd.ExecuteReaderAsync();
@@ -55,7 +64,8 @@ namespace CineSeat.Web.Services
                     AgeRating = reader["age_rating"]?.ToString() ?? "P",
                     Synopsis = reader["synopsis"]?.ToString(),
                     PosterFile = reader["poster_file"]?.ToString(),
-                    IsActive = Convert.ToInt32(reader["is_active"]) == 1
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1,
+                    ShowtimeCount = Convert.ToInt32(reader["showtime_count"])
                 });
             }
 
@@ -66,7 +76,10 @@ namespace CineSeat.Web.Services
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT movie_id, title, genre, duration_min, age_rating, synopsis, poster_file, is_active FROM movies WHERE movie_id = :p_id";
+            cmd.CommandText = @"SELECT m.movie_id, m.title, m.genre, m.duration_min, m.age_rating, m.synopsis, m.poster_file, m.is_active,
+                                       (SELECT COUNT(*) FROM showtimes s WHERE s.movie_id = m.movie_id AND s.is_active = 1 AND s.start_at > LOCALTIMESTAMP) AS showtime_count
+                                FROM movies m
+                                WHERE m.movie_id = :p_id";
             cmd.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
 
             using var reader = await cmd.ExecuteReaderAsync();
@@ -81,7 +94,8 @@ namespace CineSeat.Web.Services
                     AgeRating = reader["age_rating"]?.ToString() ?? "P",
                     Synopsis = reader["synopsis"]?.ToString(),
                     PosterFile = reader["poster_file"]?.ToString(),
-                    IsActive = Convert.ToInt32(reader["is_active"]) == 1
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1,
+                    ShowtimeCount = Convert.ToInt32(reader["showtime_count"])
                 };
             }
             return null;
@@ -93,11 +107,16 @@ namespace CineSeat.Web.Services
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
 
-            cmd.CommandText = @"SELECT showtime_id, movie_id, movie_title, start_at, end_at, base_price,
-                                       room_name, cinema_name, address, available_seats
-                                FROM v_showtime_catalog
-                                WHERE movie_id = :p_movie_id AND start_at > LOCALTIMESTAMP
-                                ORDER BY start_at";
+            cmd.CommandText = @"SELECT s.showtime_id, s.movie_id, m.title AS movie_title, m.poster_file, m.age_rating, m.duration_min,
+                                       r.room_id, r.room_name, c.cinema_id, c.cinema_name, c.address,
+                                       s.start_at, s.end_at, s.base_price,
+                                       (SELECT COUNT(*) FROM showtime_seats ss WHERE ss.showtime_id = s.showtime_id AND ss.status = 'AVAILABLE') AS available_seats
+                                FROM showtimes s
+                                JOIN movies m ON m.movie_id = s.movie_id
+                                JOIN rooms r ON r.room_id = s.room_id
+                                JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                WHERE s.movie_id = :p_movie_id AND s.is_active = 1 AND m.is_active = 1 AND s.start_at > LOCALTIMESTAMP
+                                ORDER BY s.start_at";
             cmd.Parameters.Add("p_movie_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
 
             using var reader = await cmd.ExecuteReaderAsync();
@@ -108,13 +127,19 @@ namespace CineSeat.Web.Services
                     ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
                     MovieId = Convert.ToInt32(reader["movie_id"]),
                     MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    AgeRating = reader["age_rating"]?.ToString() ?? "P",
+                    DurationMin = Convert.ToInt32(reader["duration_min"]),
+                    RoomId = Convert.ToInt32(reader["room_id"]),
+                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    Address = reader["address"]?.ToString() ?? string.Empty,
                     StartAt = Convert.ToDateTime(reader["start_at"]),
                     EndAt = Convert.ToDateTime(reader["end_at"]),
                     BasePrice = Convert.ToDecimal(reader["base_price"]),
-                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
-                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
-                    Address = reader["address"]?.ToString() ?? string.Empty,
                     AvailableSeats = Convert.ToInt32(reader["available_seats"]),
+                    TotalSeats = 40,
                     IsActive = true
                 });
             }
@@ -127,15 +152,16 @@ namespace CineSeat.Web.Services
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
 
-            cmd.CommandText = @"SELECT s.showtime_id, s.movie_id, m.title AS movie_title, s.start_at, s.end_at,
-                                       s.base_price, r.room_name, c.cinema_name, c.address,
+            cmd.CommandText = @"SELECT s.showtime_id, s.movie_id, m.title AS movie_title, m.poster_file, m.age_rating, m.duration_min,
+                                       r.room_id, r.room_name, c.cinema_id, c.cinema_name, c.address,
+                                       s.start_at, s.end_at, s.base_price,
                                        (SELECT COUNT(*) FROM showtime_seats ss WHERE ss.showtime_id = s.showtime_id AND ss.status = 'AVAILABLE') AS available_seats
                                 FROM showtimes s
                                 JOIN movies m ON m.movie_id = s.movie_id
                                 JOIN rooms r ON r.room_id = s.room_id
                                 JOIN cinemas c ON c.cinema_id = r.cinema_id
-                                WHERE s.showtime_id = :p_id";
-            cmd.Parameters.Add("p_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
+                                WHERE s.showtime_id = :p_showtime_id";
+            cmd.Parameters.Add("p_showtime_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
 
             using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -145,13 +171,19 @@ namespace CineSeat.Web.Services
                     ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
                     MovieId = Convert.ToInt32(reader["movie_id"]),
                     MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    AgeRating = reader["age_rating"]?.ToString() ?? "P",
+                    DurationMin = Convert.ToInt32(reader["duration_min"]),
+                    RoomId = Convert.ToInt32(reader["room_id"]),
+                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    Address = reader["address"]?.ToString() ?? string.Empty,
                     StartAt = Convert.ToDateTime(reader["start_at"]),
                     EndAt = Convert.ToDateTime(reader["end_at"]),
                     BasePrice = Convert.ToDecimal(reader["base_price"]),
-                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
-                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
-                    Address = reader["address"]?.ToString() ?? string.Empty,
                     AvailableSeats = Convert.ToInt32(reader["available_seats"]),
+                    TotalSeats = 40,
                     IsActive = true
                 };
             }
@@ -160,9 +192,6 @@ namespace CineSeat.Web.Services
 
         public async Task<List<ShowtimeSeat>> GetShowtimeSeatsAsync(int showtimeId)
         {
-            // Trước khi lấy danh sách ghế, thu hồi các đơn quá hạn 5 phút
-            await ExpireHoldsAsync();
-
             var seats = new List<ShowtimeSeat>();
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
@@ -186,12 +215,107 @@ namespace CineSeat.Web.Services
                     SeatNumber = Convert.ToInt32(reader["seat_number"]),
                     SeatType = reader["seat_type"]?.ToString() ?? "STANDARD",
                     Status = reader["status"]?.ToString() ?? "AVAILABLE",
-                    BookingId = reader["booking_id"] != DBNull.Value ? Convert.ToInt32(reader["booking_id"]) : null,
-                    HeldUntil = reader["held_until"] != DBNull.Value ? Convert.ToDateTime(reader["held_until"]) : null
+                    BookingId = reader["booking_id"] == DBNull.Value ? null : Convert.ToInt32(reader["booking_id"]),
+                    HeldUntil = reader["held_until"] == DBNull.Value ? null : Convert.ToDateTime(reader["held_until"])
                 });
             }
 
             return seats;
+        }
+
+        public async Task<List<Cinema>> GetCinemasAsync()
+        {
+            var cinemas = new List<Cinema>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT c.cinema_id, c.cinema_name, c.address,
+                                       (SELECT COUNT(*) FROM rooms r WHERE r.cinema_id = c.cinema_id) AS room_count
+                                FROM cinemas c
+                                ORDER BY c.cinema_id";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                cinemas.Add(new Cinema
+                {
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    Address = reader["address"]?.ToString() ?? string.Empty,
+                    RoomCount = Convert.ToInt32(reader["room_count"])
+                });
+            }
+            return cinemas;
+        }
+
+        public async Task<List<Room>> GetRoomsAsync()
+        {
+            var rooms = new List<Room>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT r.room_id, r.cinema_id, r.room_name, c.cinema_name
+                                FROM rooms r
+                                JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                ORDER BY r.cinema_id, r.room_id";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                rooms.Add(new Room
+                {
+                    RoomId = Convert.ToInt32(reader["room_id"]),
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    SeatCount = 40
+                });
+            }
+            return rooms;
+        }
+
+        public async Task<List<Showtime>> GetShowtimesByCinemaIdAsync(int cinemaId)
+        {
+            var showtimes = new List<Showtime>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"SELECT s.showtime_id, s.movie_id, m.title AS movie_title, m.poster_file, m.age_rating, m.duration_min,
+                                       r.room_id, r.room_name, c.cinema_id, c.cinema_name, c.address,
+                                       s.start_at, s.end_at, s.base_price,
+                                       (SELECT COUNT(*) FROM showtime_seats ss WHERE ss.showtime_id = s.showtime_id AND ss.status = 'AVAILABLE') AS available_seats
+                                FROM showtimes s
+                                JOIN movies m ON m.movie_id = s.movie_id
+                                JOIN rooms r ON r.room_id = s.room_id
+                                JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                WHERE c.cinema_id = :p_cinema_id AND s.is_active = 1 AND m.is_active = 1 AND s.start_at > LOCALTIMESTAMP
+                                ORDER BY s.start_at";
+            cmd.Parameters.Add("p_cinema_id", OracleDbType.Decimal, cinemaId, ParameterDirection.Input);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                showtimes.Add(new Showtime
+                {
+                    ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
+                    MovieId = Convert.ToInt32(reader["movie_id"]),
+                    MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    AgeRating = reader["age_rating"]?.ToString() ?? "P",
+                    DurationMin = Convert.ToInt32(reader["duration_min"]),
+                    RoomId = Convert.ToInt32(reader["room_id"]),
+                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    Address = reader["address"]?.ToString() ?? string.Empty,
+                    StartAt = Convert.ToDateTime(reader["start_at"]),
+                    EndAt = Convert.ToDateTime(reader["end_at"]),
+                    BasePrice = Convert.ToDecimal(reader["base_price"]),
+                    AvailableSeats = Convert.ToInt32(reader["available_seats"]),
+                    TotalSeats = 40,
+                    IsActive = true
+                });
+            }
+
+            return showtimes;
         }
 
         #endregion
@@ -247,7 +371,10 @@ namespace CineSeat.Web.Services
             var promos = new List<Promotion>();
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT promotion_id, promo_code, discount_pct, valid_until FROM promotions WHERE is_active = 1 AND valid_until >= TRUNC(SYSDATE) ORDER BY discount_pct DESC";
+            cmd.CommandText = @"SELECT promotion_id, promo_code, discount_pct, valid_until, is_active
+                                FROM promotions
+                                WHERE is_active = 1 AND valid_until >= TRUNC(SYSDATE)
+                                ORDER BY discount_pct DESC";
 
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -258,7 +385,7 @@ namespace CineSeat.Web.Services
                     PromoCode = reader["promo_code"]?.ToString() ?? string.Empty,
                     DiscountPct = Convert.ToDecimal(reader["discount_pct"]),
                     ValidUntil = Convert.ToDateTime(reader["valid_until"]),
-                    IsActive = true
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1
                 });
             }
             return promos;
@@ -266,37 +393,35 @@ namespace CineSeat.Web.Services
 
         #endregion
 
-        #region PL/SQL Package PKG_BOOKING & PR_EXPIRE_HOLDS
+        #region Nghiệp vụ PL/SQL PKG_BOOKING & PR_EXPIRE_HOLDS
 
         public async Task<decimal> CalculateTotalPriceAsync(int showtimeId, int seatCount, string? promoCode)
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandText = "BEGIN :result := pkg_booking.fn_total_price(:p_showtime_id, :p_seat_count, :p_promo_code); END;";
+            cmd.CommandText = "pkg_booking.fn_total_price";
+            cmd.CommandType = CommandType.StoredProcedure;
 
-            var pResult = cmd.Parameters.Add("result", OracleDbType.Decimal, ParameterDirection.Output);
+            var returnParam = new OracleParameter("result", OracleDbType.Decimal, ParameterDirection.ReturnValue);
+            cmd.Parameters.Add(returnParam);
+
             cmd.Parameters.Add("p_showtime_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
             cmd.Parameters.Add("p_seat_count", OracleDbType.Decimal, seatCount, ParameterDirection.Input);
-
-            if (string.IsNullOrWhiteSpace(promoCode))
-            {
-                cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input);
-            }
-            else
-            {
-                cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, promoCode.Trim(), ParameterDirection.Input);
-            }
+            cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(promoCode) ? DBNull.Value : promoCode.Trim(), ParameterDirection.Input);
 
             try
             {
                 await cmd.ExecuteNonQueryAsync();
-                var oracleDecimal = (OracleDecimal)pResult.Value;
-                return oracleDecimal.Value;
+                var rawValue = returnParam.Value;
+                if (rawValue is OracleDecimal dec)
+                {
+                    return dec.Value;
+                }
+                return Convert.ToDecimal(rawValue);
             }
             catch (OracleException oex)
             {
-                _logger.LogWarning("OracleException in fn_total_price: {Code} - {Msg}", oex.Number, oex.Message);
+                _logger.LogWarning("Oracle error calculating price: {Code} - {Msg}", oex.Number, oex.Message);
                 throw CineSeatException.FromOracleException(oex);
             }
         }
@@ -305,52 +430,47 @@ namespace CineSeat.Web.Services
             int userId, int showtimeId, string seatIdsJson, string? promoCode)
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
-            using var trans = conn.BeginTransaction();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
             using var cmd = conn.CreateCommand();
-            cmd.Transaction = trans;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Transaction = transaction;
+
             cmd.CommandText = "pkg_booking.pr_hold";
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.Add("p_user_id", OracleDbType.Decimal, userId, ParameterDirection.Input);
             cmd.Parameters.Add("p_showtime_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
             cmd.Parameters.Add("p_seats_json", OracleDbType.Clob, seatIdsJson, ParameterDirection.Input);
+            cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(promoCode) ? DBNull.Value : promoCode.Trim(), ParameterDirection.Input);
 
-            if (string.IsNullOrWhiteSpace(promoCode))
-            {
-                cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input);
-            }
-            else
-            {
-                cmd.Parameters.Add("p_promo_code", OracleDbType.Varchar2, promoCode.Trim(), ParameterDirection.Input);
-            }
+            var pBookingId = new OracleParameter("p_booking_id", OracleDbType.Decimal, ParameterDirection.Output);
+            var pTotal = new OracleParameter("p_total", OracleDbType.Decimal, ParameterDirection.Output);
+            var pExpires = new OracleParameter("p_expires", OracleDbType.TimeStamp, ParameterDirection.Output);
 
-            var pBookingId = cmd.Parameters.Add("p_booking_id", OracleDbType.Decimal, ParameterDirection.Output);
-            var pTotal = cmd.Parameters.Add("p_total", OracleDbType.Decimal, ParameterDirection.Output);
-            var pExpires = cmd.Parameters.Add("p_expires", OracleDbType.TimeStamp, ParameterDirection.Output);
+            cmd.Parameters.Add(pBookingId);
+            cmd.Parameters.Add(pTotal);
+            cmd.Parameters.Add(pExpires);
 
             try
             {
                 await cmd.ExecuteNonQueryAsync();
-                await trans.CommitAsync();
+                transaction.Commit();
 
-                int bookingId = ((OracleDecimal)pBookingId.Value).ToInt32();
-                decimal total = ((OracleDecimal)pTotal.Value).Value;
-                DateTime expires = ((OracleTimeStamp)pExpires.Value).Value;
+                int bookingId = Convert.ToInt32(pBookingId.Value.ToString());
+                decimal total = Convert.ToDecimal(pTotal.Value.ToString());
+                DateTime expires = Convert.ToDateTime(pExpires.Value.ToString());
 
-                _logger.LogInformation("HoldSeatsAsync success: bookingId={BookingId}, total={Total}, expires={Expires}", bookingId, total, expires);
                 return (bookingId, total, expires);
             }
             catch (OracleException oex)
             {
-                await trans.RollbackAsync();
-                _logger.LogWarning("HoldSeatsAsync failed: ORA-{Code} - {Msg}", oex.Number, oex.Message);
+                try { transaction.Rollback(); } catch { }
+                _logger.LogWarning("Oracle error in pr_hold: {Code} - {Msg}", oex.Number, oex.Message);
                 throw CineSeatException.FromOracleException(oex);
             }
             catch (Exception ex)
             {
-                await trans.RollbackAsync();
-                _logger.LogError(ex, "Unexpected error in HoldSeatsAsync");
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Unexpected error in pr_hold");
                 throw;
             }
         }
@@ -358,12 +478,12 @@ namespace CineSeat.Web.Services
         public async Task ConfirmBookingAsync(int bookingId, string method)
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
-            using var trans = conn.BeginTransaction();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
             using var cmd = conn.CreateCommand();
-            cmd.Transaction = trans;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Transaction = transaction;
+
             cmd.CommandText = "pkg_booking.pr_confirm";
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.Add("p_booking_id", OracleDbType.Decimal, bookingId, ParameterDirection.Input);
             cmd.Parameters.Add("p_method", OracleDbType.Varchar2, method, ParameterDirection.Input);
@@ -371,19 +491,18 @@ namespace CineSeat.Web.Services
             try
             {
                 await cmd.ExecuteNonQueryAsync();
-                await trans.CommitAsync();
-                _logger.LogInformation("ConfirmBookingAsync success: bookingId={BookingId}, method={Method}", bookingId, method);
+                transaction.Commit();
             }
             catch (OracleException oex)
             {
-                await trans.RollbackAsync();
-                _logger.LogWarning("ConfirmBookingAsync failed: ORA-{Code} - {Msg}", oex.Number, oex.Message);
+                try { transaction.Rollback(); } catch { }
+                _logger.LogWarning("Oracle error in pr_confirm: {Code} - {Msg}", oex.Number, oex.Message);
                 throw CineSeatException.FromOracleException(oex);
             }
             catch (Exception ex)
             {
-                await trans.RollbackAsync();
-                _logger.LogError(ex, "Unexpected error in ConfirmBookingAsync");
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Unexpected error in pr_confirm");
                 throw;
             }
         }
@@ -391,31 +510,30 @@ namespace CineSeat.Web.Services
         public async Task CancelBookingAsync(int bookingId)
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
-            using var trans = conn.BeginTransaction();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
             using var cmd = conn.CreateCommand();
-            cmd.Transaction = trans;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Transaction = transaction;
+
             cmd.CommandText = "pkg_booking.pr_cancel";
+            cmd.CommandType = CommandType.StoredProcedure;
 
             cmd.Parameters.Add("p_booking_id", OracleDbType.Decimal, bookingId, ParameterDirection.Input);
 
             try
             {
                 await cmd.ExecuteNonQueryAsync();
-                await trans.CommitAsync();
-                _logger.LogInformation("CancelBookingAsync success: bookingId={BookingId}", bookingId);
+                transaction.Commit();
             }
             catch (OracleException oex)
             {
-                await trans.RollbackAsync();
-                _logger.LogWarning("CancelBookingAsync failed: ORA-{Code} - {Msg}", oex.Number, oex.Message);
+                try { transaction.Rollback(); } catch { }
+                _logger.LogWarning("Oracle error in pr_cancel: {Code} - {Msg}", oex.Number, oex.Message);
                 throw CineSeatException.FromOracleException(oex);
             }
             catch (Exception ex)
             {
-                await trans.RollbackAsync();
-                _logger.LogError(ex, "Unexpected error in CancelBookingAsync");
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Unexpected error in pr_cancel");
                 throw;
             }
         }
@@ -423,42 +541,34 @@ namespace CineSeat.Web.Services
         public async Task ExpireHoldsAsync()
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
-            using var trans = conn.BeginTransaction();
             using var cmd = conn.CreateCommand();
-            cmd.Transaction = trans;
-            cmd.CommandType = CommandType.StoredProcedure;
             cmd.CommandText = "pr_expire_holds";
+            cmd.CommandType = CommandType.StoredProcedure;
 
             try
             {
                 await cmd.ExecuteNonQueryAsync();
-                await trans.CommitAsync();
             }
             catch (OracleException oex)
             {
-                await trans.RollbackAsync();
-                _logger.LogWarning("ExpireHoldsAsync failed: ORA-{Code} - {Msg}", oex.Number, oex.Message);
+                _logger.LogError(oex, "Oracle error in pr_expire_holds: {Code}", oex.Number);
                 throw CineSeatException.FromOracleException(oex);
-            }
-            catch (Exception ex)
-            {
-                await trans.RollbackAsync();
-                _logger.LogError(ex, "Unexpected error in ExpireHoldsAsync");
-                throw;
             }
         }
 
         #endregion
 
-        #region Đơn hàng & Báo cáo & Dashboard
+        #region Đơn hàng & Lịch sử & Báo cáo
 
         public async Task<Booking?> GetBookingByIdAsync(int bookingId)
         {
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
 
-            cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name, b.showtime_id, m.title AS movie_title,
-                                       r.room_name, c.cinema_name, s.start_at, b.promotion_id, p.promo_code,
+            cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name, u.email, u.phone,
+                                       b.showtime_id, m.title AS movie_title, m.poster_file,
+                                       r.room_name, c.cinema_name, s.start_at, s.end_at,
+                                       b.promotion_id, p.promo_code,
                                        b.status, b.total_amount, b.created_at, b.expires_at, b.paid_at,
                                        (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.booking_id) AS seat_count
                                 FROM bookings b
@@ -481,18 +591,22 @@ namespace CineSeat.Web.Services
                         BookingId = Convert.ToInt32(reader["booking_id"]),
                         UserId = Convert.ToInt32(reader["user_id"]),
                         FullName = reader["full_name"]?.ToString() ?? string.Empty,
+                        Email = reader["email"]?.ToString(),
+                        Phone = reader["phone"]?.ToString(),
                         ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
                         MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                        PosterFile = reader["poster_file"]?.ToString(),
                         RoomName = reader["room_name"]?.ToString(),
                         CinemaName = reader["cinema_name"]?.ToString(),
                         StartAt = Convert.ToDateTime(reader["start_at"]),
-                        PromotionId = reader["promotion_id"] != DBNull.Value ? Convert.ToInt32(reader["promotion_id"]) : null,
+                        EndAt = Convert.ToDateTime(reader["end_at"]),
+                        PromotionId = reader["promotion_id"] == DBNull.Value ? null : Convert.ToInt32(reader["promotion_id"]),
                         PromoCode = reader["promo_code"]?.ToString(),
                         Status = reader["status"]?.ToString() ?? "HELD",
                         TotalAmount = Convert.ToDecimal(reader["total_amount"]),
                         CreatedAt = Convert.ToDateTime(reader["created_at"]),
                         ExpiresAt = Convert.ToDateTime(reader["expires_at"]),
-                        PaidAt = reader["paid_at"] != DBNull.Value ? Convert.ToDateTime(reader["paid_at"]) : null,
+                        PaidAt = reader["paid_at"] == DBNull.Value ? null : Convert.ToDateTime(reader["paid_at"]),
                         SeatCount = Convert.ToInt32(reader["seat_count"])
                     };
                 }
@@ -500,16 +614,16 @@ namespace CineSeat.Web.Services
 
             if (booking != null)
             {
-                // Lấy chi tiết ghế đã chọn
-                using var seatCmd = conn.CreateCommand();
-                seatCmd.CommandText = @"SELECT bs.booking_id, bs.seat_id, bs.unit_price, s.row_label, s.seat_number, s.seat_type
-                                        FROM booking_seats bs
-                                        JOIN seats s ON s.seat_id = bs.seat_id
-                                        WHERE bs.booking_id = :p_booking_id
-                                        ORDER BY s.row_label, s.seat_number";
-                seatCmd.Parameters.Add("p_booking_id", OracleDbType.Decimal, bookingId, ParameterDirection.Input);
+                // Load danh sách ghế
+                using var cmdSeats = conn.CreateCommand();
+                cmdSeats.CommandText = @"SELECT bs.booking_id, bs.seat_id, bs.unit_price, s.row_label, s.seat_number, s.seat_type
+                                         FROM booking_seats bs
+                                         JOIN seats s ON s.seat_id = bs.seat_id
+                                         WHERE bs.booking_id = :p_booking_id
+                                         ORDER BY s.row_label, s.seat_number";
+                cmdSeats.Parameters.Add("p_booking_id", OracleDbType.Decimal, bookingId, ParameterDirection.Input);
 
-                using var seatReader = await seatCmd.ExecuteReaderAsync();
+                using var seatReader = await cmdSeats.ExecuteReaderAsync();
                 while (await seatReader.ReadAsync())
                 {
                     booking.Seats.Add(new BookingSeat
@@ -533,8 +647,10 @@ namespace CineSeat.Web.Services
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
             using var cmd = conn.CreateCommand();
 
-            cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name, b.showtime_id, m.title AS movie_title,
-                                       r.room_name, c.cinema_name, s.start_at,
+            cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name,
+                                       b.showtime_id, m.title AS movie_title, m.poster_file,
+                                       r.room_name, c.cinema_name, s.start_at, s.end_at,
+                                       b.promotion_id, p.promo_code,
                                        b.status, b.total_amount, b.created_at, b.expires_at, b.paid_at,
                                        (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.booking_id) AS seat_count
                                 FROM bookings b
@@ -543,43 +659,50 @@ namespace CineSeat.Web.Services
                                 JOIN movies m ON m.movie_id = s.movie_id
                                 JOIN rooms r ON r.room_id = s.room_id
                                 JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                LEFT JOIN promotions p ON p.promotion_id = b.promotion_id
                                 WHERE b.user_id = :p_user_id
-                                ORDER BY b.created_at DESC";
+                                ORDER BY b.booking_id DESC";
             cmd.Parameters.Add("p_user_id", OracleDbType.Decimal, userId, ParameterDirection.Input);
 
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                list.Add(new Booking
+                var b = new Booking
                 {
                     BookingId = Convert.ToInt32(reader["booking_id"]),
                     UserId = Convert.ToInt32(reader["user_id"]),
                     FullName = reader["full_name"]?.ToString() ?? string.Empty,
                     ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
                     MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
                     RoomName = reader["room_name"]?.ToString(),
                     CinemaName = reader["cinema_name"]?.ToString(),
                     StartAt = Convert.ToDateTime(reader["start_at"]),
+                    EndAt = Convert.ToDateTime(reader["end_at"]),
+                    PromotionId = reader["promotion_id"] == DBNull.Value ? null : Convert.ToInt32(reader["promotion_id"]),
+                    PromoCode = reader["promo_code"]?.ToString(),
                     Status = reader["status"]?.ToString() ?? "HELD",
                     TotalAmount = Convert.ToDecimal(reader["total_amount"]),
                     CreatedAt = Convert.ToDateTime(reader["created_at"]),
                     ExpiresAt = Convert.ToDateTime(reader["expires_at"]),
-                    PaidAt = reader["paid_at"] != DBNull.Value ? Convert.ToDateTime(reader["paid_at"]) : null,
+                    PaidAt = reader["paid_at"] == DBNull.Value ? null : Convert.ToDateTime(reader["paid_at"]),
                     SeatCount = Convert.ToInt32(reader["seat_count"])
-                });
+                };
+                list.Add(b);
             }
 
-            // Gắn danh sách mã ghế
+            // Tải chi tiết ghế cho từng đơn
             foreach (var b in list)
             {
-                using var seatCmd = conn.CreateCommand();
-                seatCmd.CommandText = @"SELECT bs.booking_id, bs.seat_id, bs.unit_price, s.row_label, s.seat_number, s.seat_type
-                                        FROM booking_seats bs
-                                        JOIN seats s ON s.seat_id = bs.seat_id
-                                        WHERE bs.booking_id = :p_b_id
-                                        ORDER BY s.row_label, s.seat_number";
-                seatCmd.Parameters.Add("p_b_id", OracleDbType.Decimal, b.BookingId, ParameterDirection.Input);
-                using var seatReader = await seatCmd.ExecuteReaderAsync();
+                using var cmdSeats = conn.CreateCommand();
+                cmdSeats.CommandText = @"SELECT bs.booking_id, bs.seat_id, bs.unit_price, s.row_label, s.seat_number, s.seat_type
+                                         FROM booking_seats bs
+                                         JOIN seats s ON s.seat_id = bs.seat_id
+                                         WHERE bs.booking_id = :p_booking_id
+                                         ORDER BY s.row_label, s.seat_number";
+                cmdSeats.Parameters.Add("p_booking_id", OracleDbType.Decimal, b.BookingId, ParameterDirection.Input);
+
+                using var seatReader = await cmdSeats.ExecuteReaderAsync();
                 while (await seatReader.ReadAsync())
                 {
                     b.Seats.Add(new BookingSeat
@@ -597,40 +720,153 @@ namespace CineSeat.Web.Services
             return list;
         }
 
+        public async Task<List<Booking>> GetAllBookingsAsync(string? statusFilter = null)
+        {
+            var list = new List<Booking>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            var sql = @"SELECT b.booking_id, b.user_id, u.full_name, u.email,
+                               b.showtime_id, m.title AS movie_title, m.poster_file,
+                               r.room_name, c.cinema_name, s.start_at, s.end_at,
+                               b.promotion_id, p.promo_code,
+                               b.status, b.total_amount, b.created_at, b.expires_at, b.paid_at,
+                               (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.booking_id) AS seat_count
+                        FROM bookings b
+                        JOIN app_users u ON u.user_id = b.user_id
+                        JOIN showtimes s ON s.showtime_id = b.showtime_id
+                        JOIN movies m ON m.movie_id = s.movie_id
+                        JOIN rooms r ON r.room_id = s.room_id
+                        JOIN cinemas c ON c.cinema_id = r.cinema_id
+                        LEFT JOIN promotions p ON p.promotion_id = b.promotion_id";
+
+            if (!string.IsNullOrWhiteSpace(statusFilter) && statusFilter != "ALL")
+            {
+                sql += " WHERE b.status = :p_status";
+                cmd.Parameters.Add("p_status", OracleDbType.Varchar2, statusFilter.Trim().ToUpper(), ParameterDirection.Input);
+            }
+
+            sql += " ORDER BY b.booking_id DESC";
+            cmd.CommandText = sql;
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new Booking
+                {
+                    BookingId = Convert.ToInt32(reader["booking_id"]),
+                    UserId = Convert.ToInt32(reader["user_id"]),
+                    FullName = reader["full_name"]?.ToString() ?? string.Empty,
+                    Email = reader["email"]?.ToString(),
+                    ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
+                    MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    RoomName = reader["room_name"]?.ToString(),
+                    CinemaName = reader["cinema_name"]?.ToString(),
+                    StartAt = Convert.ToDateTime(reader["start_at"]),
+                    EndAt = Convert.ToDateTime(reader["end_at"]),
+                    PromotionId = reader["promotion_id"] == DBNull.Value ? null : Convert.ToInt32(reader["promotion_id"]),
+                    PromoCode = reader["promo_code"]?.ToString(),
+                    Status = reader["status"]?.ToString() ?? "HELD",
+                    TotalAmount = Convert.ToDecimal(reader["total_amount"]),
+                    CreatedAt = Convert.ToDateTime(reader["created_at"]),
+                    ExpiresAt = Convert.ToDateTime(reader["expires_at"]),
+                    PaidAt = reader["paid_at"] == DBNull.Value ? null : Convert.ToDateTime(reader["paid_at"]),
+                    SeatCount = Convert.ToInt32(reader["seat_count"])
+                });
+            }
+
+            return list;
+        }
+
         public async Task<AdminDashboardViewModel> GetAdminDashboardStatsAsync()
         {
             var vm = new AdminDashboardViewModel();
             using var conn = await _connectionFactory.CreateOpenConnectionAsync();
 
-            // 1. Thống kê theo trạng thái và tổng doanh thu
+            // 1. KPI 1: Tổng doanh thu vé PAID
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT 
-                                        NVL(SUM(CASE WHEN status = 'PAID' THEN total_amount ELSE 0 END), 0) AS total_revenue,
-                                        NVL(SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END), 0) AS count_paid,
-                                        NVL(SUM(CASE WHEN status = 'HELD' THEN 1 ELSE 0 END), 0) AS count_held,
-                                        NVL(SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS count_cancelled,
-                                        NVL(SUM(CASE WHEN status = 'EXPIRED' THEN 1 ELSE 0 END), 0) AS count_expired
-                                    FROM bookings";
+                cmd.CommandText = "SELECT NVL(SUM(total_amount), 0) FROM bookings WHERE status = 'PAID'";
+                vm.TotalRevenue = Convert.ToDecimal(await cmd.ExecuteScalarAsync());
+            }
 
+            // 2. KPI 2: Tổng số vé đã bán (SOLD seats)
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM showtime_seats WHERE status = 'SOLD'";
+                vm.TotalTicketsSold = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+
+            // 3. KPI 3: Thống kê số lượng đơn theo từng trạng thái
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT status, COUNT(*) AS cnt FROM bookings GROUP BY status";
                 using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
+                while (await reader.ReadAsync())
                 {
-                    vm.TotalRevenue = Convert.ToDecimal(reader["total_revenue"]);
-                    vm.PaidCount = Convert.ToInt32(reader["count_paid"]);
-                    vm.HeldCount = Convert.ToInt32(reader["count_held"]);
-                    vm.CancelledCount = Convert.ToInt32(reader["count_cancelled"]);
-                    vm.ExpiredCount = Convert.ToInt32(reader["count_expired"]);
+                    string status = reader["status"]?.ToString() ?? "";
+                    int cnt = Convert.ToInt32(reader["cnt"]);
+                    switch (status.ToUpperInvariant())
+                    {
+                        case "PAID": vm.PaidCount = cnt; break;
+                        case "HELD": vm.HeldCount = cnt; break;
+                        case "CANCELLED": vm.CancelledCount = cnt; break;
+                        case "EXPIRED": vm.ExpiredCount = cnt; break;
+                    }
                 }
             }
 
-            // 2. Nhật ký Audit gần đây từ bảng BOOKING_AUDIT
+            // 4. KPI 4: Tổng số phim & suất chiếu đang hoạt động
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT audit_id, booking_id, old_status, new_status, changed_at, description
-                                    FROM booking_audit
-                                    ORDER BY changed_at DESC, audit_id DESC
-                                    FETCH FIRST 30 ROWS ONLY";
+                cmd.CommandText = "SELECT COUNT(*) FROM movies WHERE is_active = 1";
+                vm.ActiveMoviesCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM showtimes WHERE is_active = 1 AND start_at > LOCALTIMESTAMP";
+                vm.ActiveShowtimesCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            }
+
+            // 5. Chart 1: Doanh thu & số vé theo từng phim (Top movies)
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"SELECT m.title,
+                                           NVL(SUM(b.total_amount), 0) AS revenue,
+                                           NVL(COUNT(bs.seat_id), 0) AS tickets_sold
+                                    FROM movies m
+                                    LEFT JOIN showtimes s ON s.movie_id = m.movie_id
+                                    LEFT JOIN bookings b ON b.showtime_id = s.showtime_id AND b.status = 'PAID'
+                                    LEFT JOIN booking_seats bs ON bs.booking_id = b.booking_id
+                                    WHERE m.is_active = 1
+                                    GROUP BY m.movie_id, m.title
+                                    ORDER BY revenue DESC";
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    vm.MovieRevenues.Add(new MovieRevenueStat
+                    {
+                        MovieTitle = reader["title"]?.ToString() ?? string.Empty,
+                        Revenue = Convert.ToDecimal(reader["revenue"]),
+                        TicketsSold = Convert.ToInt32(reader["tickets_sold"])
+                    });
+                }
+            }
+
+            // 6. Nhật ký kiểm toán BOOKING_AUDIT (20 bản ghi mới nhất)
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"SELECT a.audit_id, a.booking_id, a.old_status, a.new_status, a.changed_at, a.description,
+                                           u.full_name AS customer_name, m.title AS movie_title
+                                    FROM booking_audit a
+                                    LEFT JOIN bookings b ON b.booking_id = a.booking_id
+                                    LEFT JOIN app_users u ON u.user_id = b.user_id
+                                    LEFT JOIN showtimes s ON s.showtime_id = b.showtime_id
+                                    LEFT JOIN movies m ON m.movie_id = s.movie_id
+                                    ORDER BY a.audit_id DESC
+                                    FETCH FIRST 20 ROWS ONLY";
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -639,25 +875,31 @@ namespace CineSeat.Web.Services
                     {
                         AuditId = Convert.ToInt32(reader["audit_id"]),
                         BookingId = Convert.ToInt32(reader["booking_id"]),
-                        OldStatus = reader["old_status"]?.ToString(),
+                        OldStatus = reader["old_status"] == DBNull.Value ? null : reader["old_status"].ToString(),
                         NewStatus = reader["new_status"]?.ToString(),
                         ChangedAt = Convert.ToDateTime(reader["changed_at"]),
-                        Description = reader["description"]?.ToString()
+                        Description = reader["description"]?.ToString(),
+                        CustomerName = reader["customer_name"]?.ToString(),
+                        MovieTitle = reader["movie_title"]?.ToString()
                     });
                 }
             }
 
-            // 3. Danh sách 10 đơn hàng gần đây
+            // 7. Danh sách 10 đơn đặt vé gần nhất
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name, b.showtime_id, m.title AS movie_title,
-                                           b.status, b.total_amount, b.created_at, b.expires_at, b.paid_at,
+                cmd.CommandText = @"SELECT b.booking_id, b.user_id, u.full_name,
+                                           b.showtime_id, m.title AS movie_title,
+                                           r.room_name, c.cinema_name, s.start_at,
+                                           b.status, b.total_amount, b.created_at,
                                            (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = b.booking_id) AS seat_count
                                     FROM bookings b
                                     JOIN app_users u ON u.user_id = b.user_id
                                     JOIN showtimes s ON s.showtime_id = b.showtime_id
                                     JOIN movies m ON m.movie_id = s.movie_id
-                                    ORDER BY b.created_at DESC
+                                    JOIN rooms r ON r.room_id = s.room_id
+                                    JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                    ORDER BY b.booking_id DESC
                                     FETCH FIRST 10 ROWS ONLY";
 
                 using var reader = await cmd.ExecuteReaderAsync();
@@ -670,17 +912,209 @@ namespace CineSeat.Web.Services
                         FullName = reader["full_name"]?.ToString() ?? string.Empty,
                         ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
                         MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                        RoomName = reader["room_name"]?.ToString(),
+                        CinemaName = reader["cinema_name"]?.ToString(),
+                        StartAt = Convert.ToDateTime(reader["start_at"]),
                         Status = reader["status"]?.ToString() ?? "HELD",
                         TotalAmount = Convert.ToDecimal(reader["total_amount"]),
                         CreatedAt = Convert.ToDateTime(reader["created_at"]),
-                        ExpiresAt = Convert.ToDateTime(reader["expires_at"]),
-                        PaidAt = reader["paid_at"] != DBNull.Value ? Convert.ToDateTime(reader["paid_at"]) : null,
                         SeatCount = Convert.ToInt32(reader["seat_count"])
                     });
                 }
             }
 
             return vm;
+        }
+
+        #endregion
+
+        #region Quản trị Admin
+
+        public async Task<List<Movie>> GetAllMoviesAdminAsync()
+        {
+            var movies = new List<Movie>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"SELECT m.movie_id, m.title, m.genre, m.duration_min, m.age_rating, m.synopsis, m.poster_file, m.is_active,
+                                       (SELECT COUNT(*) FROM showtimes s WHERE s.movie_id = m.movie_id) AS showtime_count
+                                FROM movies m
+                                ORDER BY m.movie_id DESC";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                movies.Add(new Movie
+                {
+                    MovieId = Convert.ToInt32(reader["movie_id"]),
+                    Title = reader["title"]?.ToString() ?? string.Empty,
+                    Genre = reader["genre"]?.ToString() ?? string.Empty,
+                    DurationMin = Convert.ToInt32(reader["duration_min"]),
+                    AgeRating = reader["age_rating"]?.ToString() ?? "P",
+                    Synopsis = reader["synopsis"]?.ToString(),
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1,
+                    ShowtimeCount = Convert.ToInt32(reader["showtime_count"])
+                });
+            }
+            return movies;
+        }
+
+        public async Task<List<Showtime>> GetAllShowtimesAdminAsync()
+        {
+            var showtimes = new List<Showtime>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"SELECT s.showtime_id, s.movie_id, m.title AS movie_title, m.poster_file, m.age_rating, m.duration_min,
+                                       r.room_id, r.room_name, c.cinema_id, c.cinema_name, c.address,
+                                       s.start_at, s.end_at, s.base_price, s.is_active,
+                                       (SELECT COUNT(*) FROM showtime_seats ss WHERE ss.showtime_id = s.showtime_id AND ss.status = 'AVAILABLE') AS available_seats
+                                FROM showtimes s
+                                JOIN movies m ON m.movie_id = s.movie_id
+                                JOIN rooms r ON r.room_id = s.room_id
+                                JOIN cinemas c ON c.cinema_id = r.cinema_id
+                                ORDER BY s.start_at DESC";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                showtimes.Add(new Showtime
+                {
+                    ShowtimeId = Convert.ToInt32(reader["showtime_id"]),
+                    MovieId = Convert.ToInt32(reader["movie_id"]),
+                    MovieTitle = reader["movie_title"]?.ToString() ?? string.Empty,
+                    PosterFile = reader["poster_file"]?.ToString(),
+                    AgeRating = reader["age_rating"]?.ToString() ?? "P",
+                    DurationMin = Convert.ToInt32(reader["duration_min"]),
+                    RoomId = Convert.ToInt32(reader["room_id"]),
+                    RoomName = reader["room_name"]?.ToString() ?? string.Empty,
+                    CinemaId = Convert.ToInt32(reader["cinema_id"]),
+                    CinemaName = reader["cinema_name"]?.ToString() ?? string.Empty,
+                    Address = reader["address"]?.ToString() ?? string.Empty,
+                    StartAt = Convert.ToDateTime(reader["start_at"]),
+                    EndAt = Convert.ToDateTime(reader["end_at"]),
+                    BasePrice = Convert.ToDecimal(reader["base_price"]),
+                    AvailableSeats = Convert.ToInt32(reader["available_seats"]),
+                    TotalSeats = 40,
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1
+                });
+            }
+            return showtimes;
+        }
+
+        public async Task<int> AddMovieAsync(CreateMovieInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"INSERT INTO movies(title, genre, duration_min, age_rating, synopsis, poster_file, is_active)
+                                VALUES(:p_title, :p_genre, :p_duration, :p_rating, :p_synopsis, :p_poster, 1)
+                                RETURNING movie_id INTO :p_new_id";
+
+            cmd.Parameters.Add("p_title", OracleDbType.NVarchar2, input.Title.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_genre", OracleDbType.NVarchar2, input.Genre.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_duration", OracleDbType.Decimal, input.DurationMin, ParameterDirection.Input);
+            cmd.Parameters.Add("p_rating", OracleDbType.Varchar2, input.AgeRating.Trim().ToUpper(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_synopsis", OracleDbType.NVarchar2, string.IsNullOrWhiteSpace(input.Synopsis) ? DBNull.Value : input.Synopsis.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_poster", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(input.PosterFile) ? "default-poster.jpg" : input.PosterFile.Trim(), ParameterDirection.Input);
+
+            var pNewId = new OracleParameter("p_new_id", OracleDbType.Decimal, ParameterDirection.Output);
+            cmd.Parameters.Add(pNewId);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+                return Convert.ToInt32(pNewId.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error adding movie");
+                throw;
+            }
+        }
+
+        public async Task ToggleMovieActiveAsync(int movieId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE movies
+                                SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+                                WHERE movie_id = :p_id";
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error toggling movie active");
+                throw;
+            }
+        }
+
+        public async Task<int> CreateShowtimeAsync(CreateShowtimeInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            try
+            {
+                // Bước 1: Tạo bản ghi SHOWTIMES
+                int newShowtimeId = 0;
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = @"INSERT INTO showtimes(movie_id, room_id, start_at, end_at, base_price, is_active)
+                                        VALUES(:p_movie_id, :p_room_id, :p_start, :p_end, :p_price, 1)
+                                        RETURNING showtime_id INTO :p_new_id";
+
+                    cmd.Parameters.Add("p_movie_id", OracleDbType.Decimal, input.MovieId, ParameterDirection.Input);
+                    cmd.Parameters.Add("p_room_id", OracleDbType.Decimal, input.RoomId, ParameterDirection.Input);
+                    cmd.Parameters.Add("p_start", OracleDbType.TimeStamp, input.StartAt, ParameterDirection.Input);
+                    cmd.Parameters.Add("p_end", OracleDbType.TimeStamp, input.EndAt, ParameterDirection.Input);
+                    cmd.Parameters.Add("p_price", OracleDbType.Decimal, input.BasePrice, ParameterDirection.Input);
+
+                    var pNewId = new OracleParameter("p_new_id", OracleDbType.Decimal, ParameterDirection.Output);
+                    cmd.Parameters.Add(pNewId);
+
+                    await cmd.ExecuteNonQueryAsync();
+                    newShowtimeId = Convert.ToInt32(pNewId.Value.ToString());
+                }
+
+                // Bước 2: TỰ ĐỘNG SINH 40 GHẾ AVAILABLE VÀO BẢNG SHOWTIME_SEATS THEO ROOM_ID
+                using (var cmdSeats = conn.CreateCommand())
+                {
+                    cmdSeats.Transaction = transaction;
+                    cmdSeats.CommandText = @"INSERT INTO showtime_seats(showtime_id, seat_id, status)
+                                             SELECT :p_showtime_id, seat_id, 'AVAILABLE'
+                                             FROM seats
+                                             WHERE room_id = :p_room_id";
+
+                    cmdSeats.Parameters.Add("p_showtime_id", OracleDbType.Decimal, newShowtimeId, ParameterDirection.Input);
+                    cmdSeats.Parameters.Add("p_room_id", OracleDbType.Decimal, input.RoomId, ParameterDirection.Input);
+
+                    await cmdSeats.ExecuteNonQueryAsync();
+                }
+
+                transaction.Commit();
+                return newShowtimeId;
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error creating showtime and populating seats");
+                throw;
+            }
         }
 
         #endregion

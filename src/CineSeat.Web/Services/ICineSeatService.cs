@@ -4,12 +4,15 @@ namespace CineSeat.Web.Services
 {
     public interface ICineSeatService
     {
-        // Phim & Suất chiếu
-        Task<List<Movie>> GetMoviesAsync(string? search = null, string? genre = null);
+        // Phim & Rạp & Suất chiếu
+        Task<List<Movie>> GetMoviesAsync(string? search = null, string? genre = null, string? ageRating = null);
         Task<Movie?> GetMovieByIdAsync(int movieId);
         Task<List<Showtime>> GetShowtimesByMovieIdAsync(int movieId);
         Task<Showtime?> GetShowtimeByIdAsync(int showtimeId);
         Task<List<ShowtimeSeat>> GetShowtimeSeatsAsync(int showtimeId);
+        Task<List<Cinema>> GetCinemasAsync();
+        Task<List<Room>> GetRoomsAsync();
+        Task<List<Showtime>> GetShowtimesByCinemaIdAsync(int cinemaId);
 
         // Người dùng & Khuyến mãi
         Task<List<AppUser>> GetUsersAsync();
@@ -26,6 +29,14 @@ namespace CineSeat.Web.Services
         // Đơn hàng & Lịch sử & Báo cáo
         Task<Booking?> GetBookingByIdAsync(int bookingId);
         Task<List<Booking>> GetBookingHistoryByUserIdAsync(int userId);
+        Task<List<Booking>> GetAllBookingsAsync(string? statusFilter = null);
         Task<AdminDashboardViewModel> GetAdminDashboardStatsAsync();
+
+        // Quản trị Admin
+        Task<List<Movie>> GetAllMoviesAdminAsync();
+        Task<List<Showtime>> GetAllShowtimesAdminAsync();
+        Task<int> AddMovieAsync(CreateMovieInputModel input);
+        Task ToggleMovieActiveAsync(int movieId);
+        Task<int> CreateShowtimeAsync(CreateShowtimeInputModel input);
     }
 }

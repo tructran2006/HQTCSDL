@@ -1,4 +1,5 @@
 using CineSeat.Web.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace CineSeat.Web.Services
 {
@@ -13,6 +14,7 @@ namespace CineSeat.Web.Services
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ICineSeatService _cineSeatService;
+        private const string UserSessionKey = "CurrentUserId";
         private const string UserCookieKey = "CineSeat_UserId";
 
         public UserContext(IHttpContextAccessor httpContextAccessor, ICineSeatService cineSeatService)
@@ -26,11 +28,29 @@ namespace CineSeat.Web.Services
             get
             {
                 var context = _httpContextAccessor.HttpContext;
-                if (context != null && context.Request.Cookies.TryGetValue(UserCookieKey, out var cookieVal))
+                if (context != null)
                 {
-                    if (int.TryParse(cookieVal, out int uid) && uid > 0)
+                    // 1. Kiểm tra Session trước
+                    try
                     {
-                        return uid;
+                        var sessionUid = context.Session.GetInt32(UserSessionKey);
+                        if (sessionUid.HasValue && sessionUid.Value > 0)
+                        {
+                            return sessionUid.Value;
+                        }
+                    }
+                    catch
+                    {
+                        // Bỏ qua nếu Session chưa sẵn sàng
+                    }
+
+                    // 2. Kiểm tra Cookie
+                    if (context.Request.Cookies.TryGetValue(UserCookieKey, out var cookieVal))
+                    {
+                        if (int.TryParse(cookieVal, out int uid) && uid > 0)
+                        {
+                            return uid;
+                        }
                     }
                 }
                 return 1; // Mặc định là Nguyễn Minh Anh (user_id = 1)
@@ -49,6 +69,17 @@ namespace CineSeat.Web.Services
             var context = _httpContextAccessor.HttpContext;
             if (context != null)
             {
+                // Lưu vào Session
+                try
+                {
+                    context.Session.SetInt32(UserSessionKey, userId);
+                }
+                catch
+                {
+                    // Bỏ qua nếu Session lỗi
+                }
+
+                // Lưu vào Cookie
                 context.Response.Cookies.Append(UserCookieKey, userId.ToString(), new CookieOptions
                 {
                     Expires = DateTimeOffset.Now.AddDays(7),
