@@ -1,129 +1,177 @@
 @model List<CineSeat.Web.Models.Movie>
 @{
-    ViewData["Title"] = "Phim Đang Chiếu";
-    var currentUser = ViewBag.CurrentUser as CineSeat.Web.Models.AppUser;
-    var currentGenre = ViewBag.Genre as string;
-    var currentSearch = ViewBag.Search as string;
-    var genres = ViewBag.Genres as List<string> ?? new List<string>();
+    ViewData["Title"] = "Trang Chủ - Phim Đang Chiếu";
+    var heroMovie = ViewBag.HeroMovie as CineSeat.Web.Models.Movie;
+    var allGenres = ViewBag.AllGenres as List<string> ?? new List<string>();
+    string currentGenre = ViewBag.SelectedGenre as string ?? "";
+    string currentRating = ViewBag.SelectedAgeRating as string ?? "ALL";
+    string currentSearch = ViewBag.Search as string ?? "";
 }
 
-<!-- Hero Section -->
-<div class="p-4 p-md-5 mb-4 rounded-4 bg-gradient position-relative overflow-hidden" 
-     style="background: linear-gradient(135deg, #1f2937 0%, #111827 50%, #030712 100%); border: 1px solid rgba(255,255,255,0.08);">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold mb-3 text-uppercase">
-                <i class="bi bi-stars me-1"></i> Rạp Chiếu Phim Đẳng Cấp 2026
-            </span>
-            <h1 class="display-5 fw-extrabold text-white mb-2">
-                Trải Nghiệm Điện Ảnh Tuyệt Đỉnh Tại <span class="text-warning">CineSeat</span>
-            </h1>
-            <p class="lead text-secondary mb-4">
-                Hệ thống đặt vé chuẩn 3NF trên nền tảng <strong>Oracle Database 23ai Free</strong> & <strong>ASP.NET Core (.NET 8)</strong>. 
-                Giữ ghế thông minh, chống bán trùng vé bằng giao dịch PL/SQL và hàng đợi tranh chấp độc quyền.
-            </p>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="badge bg-dark border border-secondary px-3 py-2">
-                    <i class="bi bi-person-check text-warning me-1"></i> Đang đăng nhập: <strong>@(currentUser?.FullName ?? "Demo User")</strong>
-                </span>
-                <span class="badge bg-dark border border-secondary px-3 py-2 text-info">
-                    <i class="bi bi-clock-history me-1"></i> Giữ chỗ tự động 5 phút
-                </span>
-                <span class="badge bg-dark border border-secondary px-3 py-2 text-success">
-                    <i class="bi bi-shield-lock me-1"></i> Khóa SELECT FOR UPDATE
-                </span>
-            </div>
-        </div>
-        <div class="col-lg-4 text-center d-none d-lg-block">
-            <div class="p-4 rounded-circle d-inline-block bg-warning bg-opacity-10 border border-warning border-opacity-25 shadow-lg">
-                <i class="bi bi-ticket-perforated-fill text-warning" style="font-size: 6rem;"></i>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Search & Filter Bar -->
-<div class="card bg-dark border-secondary border-opacity-25 mb-4 p-3 shadow-sm">
-    <form method="get" asp-action="Index" class="row g-2 align-items-center">
-        <div class="col-md-5">
-            <div class="input-group">
-                <span class="input-group-text bg-black border-secondary text-secondary"><i class="bi bi-search"></i></span>
-                <input type="text" name="search" value="@currentSearch" class="form-control bg-black border-secondary text-light" placeholder="Tìm tên phim hoặc nội dung tóm tắt..." />
-            </div>
-        </div>
-        <div class="col-md-5">
-            <select name="genre" class="form-select bg-black border-secondary text-light">
-                <option value="">-- Tất cả thể loại phim --</option>
-                @foreach (var g in genres)
-                {
-                    <option value="@g" selected="@(g == currentGenre)">@g</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-2 d-flex gap-2">
-            <button type="submit" class="btn btn-warning fw-semibold flex-grow-1">
-                <i class="bi bi-funnel me-1"></i> Lọc
-            </button>
-            @if (!string.IsNullOrEmpty(currentSearch) || !string.IsNullOrEmpty(currentGenre))
-            {
-                <a asp-action="Index" class="btn btn-outline-secondary" title="Đặt lại bộ lọc"><i class="bi bi-x-lg"></i></a>
-            }
-        </div>
-    </form>
-</div>
-
-<!-- Movies Grid -->
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-    @if (Model != null && Model.Any())
+<div class="container pb-5">
+    <!-- 1. HERO BANNER PHIM NỔI BẬT (100% REAL DATA TỪ CSDL) -->
+    @if (heroMovie != null)
     {
-        @foreach (var movie in Model)
-        {
-            <div class="col">
-                <div class="card h-100 movie-card rounded-4 overflow-hidden border-0">
-                    <div class="movie-poster-wrapper position-relative">
-                        <!-- Poster Image or Styled Fallback Banner -->
-                        <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3 text-center"
-                             style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);">
-                            <i class="bi bi-film text-warning opacity-50 mb-2" style="font-size: 3rem;"></i>
-                            <h6 class="fw-bold text-white px-2 mb-1">@movie.Title</h6>
-                            <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-8">
-                                @movie.Genre
-                            </span>
-                        </div>
-                        
-                        <!-- Age Rating Badge -->
-                        <span class="movie-rating-badge @(movie.AgeRating == "T18" ? "bg-danger" : movie.AgeRating == "T16" ? "bg-warning text-dark" : movie.AgeRating == "T13" ? "bg-info text-dark" : "bg-success")">
-                            @movie.AgeRating
-                        </span>
-                    </div>
-
-                    <div class="card-body d-flex flex-column p-3">
-                        <h5 class="card-title fw-bold text-white text-truncate mb-1" title="@movie.Title">
-                            @movie.Title
-                        </h5>
-                        <div class="d-flex align-items-center gap-2 text-secondary fs-8 mb-2">
-                            <span><i class="bi bi-clock me-1"></i>@movie.DurationMin phút</span>
-                            <span>&bull;</span>
-                            <span class="text-truncate">@movie.Genre</span>
-                        </div>
-                        <p class="card-text text-secondary fs-8 flex-grow-1" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                            @(string.IsNullOrWhiteSpace(movie.Synopsis) ? "Đang cập nhật nội dung tóm tắt..." : movie.Synopsis)
-                        </p>
-                        <a asp-action="Showtimes" asp-route-id="@movie.MovieId" class="btn btn-warning w-100 fw-bold mt-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
-                            <i class="bi bi-calendar-event"></i> Xem Lịch Chiếu
-                        </a>
-                    </div>
+        <div class="hero-banner p-4 p-md-5 mb-5 text-white position-relative" 
+             style="background-image: url('/images/@heroMovie.PosterFile');">
+            <div class="position-absolute top-0 start-0 w-100 h-100 hero-overlay"></div>
+            
+            <div class="position-relative z-1 col-lg-7 py-3">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-danger text-uppercase px-2 py-1 fs-9 fw-bold">Phim Nổi Bật Hôm Nay</span>
+                    <span class="badge badge-rating badge-rating-@heroMovie.AgeRating">@heroMovie.AgeRating</span>
+                    <span class="text-secondary fs-8"><i class="bi bi-clock me-1"></i>@heroMovie.DurationMin phút</span>
+                </div>
+                
+                <h1 class="display-5 fw-extrabold text-white mb-2 tracking-tight">@heroMovie.Title</h1>
+                
+                <p class="text-gold fw-semibold fs-7 mb-3">
+                    <i class="bi bi-tags-fill me-1"></i>@heroMovie.Genre
+                </p>
+                
+                <p class="text-light opacity-75 fs-7 mb-4 line-clamp-3" style="max-width: 600px;">
+                    @(string.IsNullOrWhiteSpace(heroMovie.Synopsis) ? "Trải nghiệm điện ảnh đỉnh cao tại cụm rạp CineSeat với công nghệ âm thanh Dolby Atmos và màn chiếu IMAX sắc nét." : heroMovie.Synopsis)
+                </p>
+                
+                <div class="d-flex flex-wrap gap-3">
+                    <a asp-action="Details" asp-route-id="@heroMovie.MovieId" class="btn btn-cinema btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-ticket-perforated-fill fs-5"></i>
+                        <span>Đặt Vé Ngay</span>
+                    </a>
+                    <a asp-action="CinemaShowtimes" class="btn btn-outline-light btn-lg px-4 py-2 fs-6 rounded-pill d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <span>Xem Lịch Rạp</span>
+                    </a>
                 </div>
             </div>
-        }
+        </div>
+    }
+
+    <!-- 2. BỘ LỌC & TÌM KIẾM TRỰC QUAN -->
+    <div class="card bg-card border-cs rounded-4 p-4 mb-5 shadow-sm">
+        <form method="get" asp-action="Index" class="row g-3 align-items-center">
+            <!-- Tìm theo tên -->
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-surface border-cs text-secondary">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="search" value="@currentSearch" 
+                           class="form-control bg-surface border-cs text-white shadow-none" 
+                           placeholder="Nhập tên phim cần tìm..." />
+                </div>
+            </div>
+
+            <!-- Lọc theo thể loại -->
+            <div class="col-md-3">
+                <select name="genre" class="form-select bg-surface border-cs text-white shadow-none">
+                    <option value="">Tất cả thể loại</option>
+                    @foreach (var g in allGenres)
+                    {
+                        <option value="@g" selected="@(currentGenre == g)">@g</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Lọc theo nhãn độ tuổi -->
+            <div class="col-md-2">
+                <select name="ageRating" class="form-select bg-surface border-cs text-white shadow-none">
+                    <option value="ALL" selected="@(currentRating == "ALL")">Độ tuổi: Tất cả</option>
+                    <option value="P" selected="@(currentRating == "P")">P (Mọi lứa tuổi)</option>
+                    <option value="K" selected="@(currentRating == "K")">K (Dưới 13 kèm phụ huynh)</option>
+                    <option value="T13" selected="@(currentRating == "T13")">T13 (Từ 13 tuổi)</option>
+                    <option value="T16" selected="@(currentRating == "T16")">T16 (Từ 16 tuổi)</option>
+                    <option value="T18" selected="@(currentRating == "T18")">T18 (Từ 18 tuổi)</option>
+                </select>
+            </div>
+
+            <!-- Nút lọc & Reset -->
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-cinema w-100 rounded-3">
+                    <i class="bi bi-funnel-fill me-1"></i> Lọc
+                </button>
+                @if (!string.IsNullOrEmpty(currentSearch) || !string.IsNullOrEmpty(currentGenre) || currentRating != "ALL")
+                {
+                    <a asp-action="Index" class="btn btn-outline-secondary rounded-3" title="Xóa bộ lọc">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <!-- 3. DANH SÁCH THẺ PHIM (MOVIE CARDS TỶ LỆ 2:3) -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+                <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-camera-reels"></i></span>
+                Phim Đang Chiếu Rạp
+            </h3>
+            <p class="text-secondary small mb-0">Hiển thị @Model.Count bộ phim từ CSDL Oracle 23ai</p>
+        </div>
+        <a asp-action="CinemaShowtimes" class="btn btn-sm btn-outline-light rounded-pill px-3">
+            <i class="bi bi-calendar-event me-1"></i> Xem lịch chiếu tất cả rạp
+        </a>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-center py-5 my-4 bg-card rounded-4 border-cs">
+            <i class="bi bi-camera-video-off fs-1 text-secondary d-block mb-3"></i>
+            <h5 class="text-white">Không tìm thấy bộ phim nào phù hợp!</h5>
+            <p class="text-secondary small">Vui lòng thử tìm kiếm với từ khóa hoặc bộ lọc khác.</p>
+            <a asp-action="Index" class="btn btn-outline-danger btn-sm rounded-pill px-4 mt-2">Xem tất cả phim</a>
+        </div>
     }
     else
     {
-        <div class="col-12 py-5 text-center text-secondary">
-            <i class="bi bi-camera-reels fs-1 d-block mb-3 opacity-25"></i>
-            <h5>Không tìm thấy bộ phim nào phù hợp với điều kiện tìm kiếm.</h5>
-            <p>Vui lòng thử lại với từ khóa hoặc thể loại khác.</p>
-            <a asp-action="Index" class="btn btn-outline-warning mt-2">Xem Tất Cả Phim</a>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach (var movie in Model)
+            {
+                <div class="col">
+                    <div class="movie-card h-100 d-flex flex-column">
+                        <!-- Poster Container 2:3 -->
+                        <div class="movie-poster-container">
+                            <img src="/images/@(string.IsNullOrEmpty(movie.PosterFile) ? "default-poster.jpg" : movie.PosterFile)" 
+                                 alt="@movie.Title" 
+                                 class="movie-poster-img"
+                                 onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                            
+                            <!-- Badges trên poster -->
+                            <div class="position-absolute top-0 start-0 p-2 d-flex flex-column gap-1">
+                                <span class="badge badge-rating badge-rating-@movie.AgeRating shadow">@movie.AgeRating</span>
+                            </div>
+
+                            <div class="position-absolute bottom-0 start-0 w-100 p-2 bg-dark bg-opacity-75 backdrop-blur d-flex justify-content-between align-items-center">
+                                <small class="text-white fs-8"><i class="bi bi-clock me-1 text-danger"></i>@movie.DurationMin phút</small>
+                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 fs-9">
+                                    <i class="bi bi-calendar-check me-1"></i>@movie.ShowtimeCount suất
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Info Body -->
+                        <div class="p-3 d-flex flex-column flex-grow-1 justify-content-between">
+                            <div>
+                                <h6 class="fw-bold text-white mb-1 text-truncate" title="@movie.Title">
+                                    @movie.Title
+                                </h6>
+                                <p class="text-secondary fs-8 mb-2 text-truncate" title="@movie.Genre">
+                                    <i class="bi bi-film me-1 text-gold"></i>@movie.Genre
+                                </p>
+                            </div>
+
+                            <div class="pt-2 border-top border-cs mt-2">
+                                <a asp-action="Details" asp-route-id="@movie.MovieId" 
+                                   class="btn btn-cinema btn-sm w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-1">
+                                    <i class="bi bi-ticket-detailed"></i>
+                                    <span>Xem Lịch Chiếu</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     }
 </div>

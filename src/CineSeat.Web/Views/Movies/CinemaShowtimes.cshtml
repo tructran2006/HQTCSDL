@@ -1,0 +1,117 @@
+@model CineSeat.Web.Models.CinemaShowtimesViewModel
+@{
+    ViewData["Title"] = "Lịch Chiếu Theo Cụm Rạp";
+}
+
+<div class="container pb-5">
+    <div class="mb-4">
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-geo-alt-fill"></i></span>
+            Lịch Chiếu Theo Cụm Rạp
+        </h3>
+        <p class="text-secondary small">Chọn cụm rạp CineSeat để xem danh sách toàn bộ suất chiếu đang mở bán</p>
+    </div>
+
+    <!-- TABS CHỌN CỤM RẠP -->
+    <div class="card bg-card border-cs rounded-4 p-3 mb-4 shadow-sm">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var c in Model.Cinemas)
+            {
+                <a asp-action="CinemaShowtimes" asp-route-cinemaId="@c.CinemaId" 
+                   class="btn @(c.CinemaId == Model.SelectedCinemaId ? "btn-danger fw-bold shadow" : "btn-outline-secondary") rounded-pill px-4 py-2 d-flex align-items-center gap-2">
+                    <i class="bi bi-building"></i>
+                    <span>@c.CinemaName</span>
+                    <span class="badge @(c.CinemaId == Model.SelectedCinemaId ? "bg-white text-danger" : "bg-dark text-secondary") rounded-pill fs-9">
+                        @c.RoomCount phòng
+                    </span>
+                </a>
+            }
+        </div>
+
+        @if (Model.SelectedCinema != null)
+        {
+            <div class="mt-3 pt-3 border-top border-cs text-secondary small d-flex align-items-center gap-2">
+                <i class="bi bi-geo-alt text-danger"></i>
+                <span class="text-light fw-semibold">Địa chỉ:</span>
+                <span>@Model.SelectedCinema.Address</span>
+            </div>
+        }
+    </div>
+
+    <!-- DANH SÁCH SUẤT CHIẾU THEO NGÀY TẠI RẠP NÀY -->
+    @if (!Model.Showtimes.Any())
+    {
+        <div class="alert alert-dark bg-card border-cs text-center py-5 rounded-4">
+            <i class="bi bi-calendar-x fs-1 text-secondary d-block mb-2"></i>
+            <h5 class="text-white">Hiện chưa có suất chiếu nào tại cụm rạp này</h5>
+            <p class="text-secondary small">Vui lòng chọn cụm rạp khác hoặc quay lại sau.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var dateGroup in Model.GroupedByDate)
+        {
+            <div class="card bg-card border-cs rounded-4 p-4 mb-4 shadow-sm">
+                <!-- Header Ngày -->
+                <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-cs">
+                    <span class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger">
+                        <i class="bi bi-calendar-event fs-5"></i>
+                    </span>
+                    <div>
+                        <h5 class="fw-bold text-white mb-0">
+                            @dateGroup.Key.ToString("dddd, dd/MM/yyyy", new System.Globalization.CultureInfo("vi-VN"))
+                        </h5>
+                        <small class="text-gold fs-8">@(dateGroup.Key.Date == DateTime.Today ? "Hôm nay" : dateGroup.Key.Date == DateTime.Today.AddDays(1) ? "Ngày mai" : "Suất tương lai")</small>
+                    </div>
+                </div>
+
+                <!-- Nhóm theo Phim trong ngày đó -->
+                @{
+                    var showtimesByMovie = dateGroup.Value.GroupBy(s => s.MovieTitle).ToList();
+                }
+
+                @foreach (var movieGroup in showtimesByMovie)
+                {
+                    var firstSt = movieGroup.First();
+                    <div class="p-3 bg-surface rounded-3 border-cs mb-3">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <img src="/images/@(string.IsNullOrEmpty(firstSt.PosterFile) ? "default-poster.jpg" : firstSt.PosterFile)" 
+                                 alt="@movieGroup.Key" 
+                                 class="rounded-2 shadow" style="width: 48px; height: 72px; object-fit: cover;"
+                                 onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="fw-bold text-white mb-0">@movieGroup.Key</h6>
+                                    <span class="badge badge-rating badge-rating-@firstSt.AgeRating fs-9">@firstSt.AgeRating</span>
+                                </div>
+                                <small class="text-secondary fs-8">
+                                    <i class="bi bi-clock me-1 text-danger"></i>@firstSt.DurationMin phút • @movieGroup.Count() suất chiếu
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Lưới giờ chiếu -->
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var st in movieGroup)
+                            {
+                                <a asp-controller="Bookings" asp-action="SelectSeats" asp-route-id="@st.ShowtimeId" 
+                                   class="btn btn-outline-secondary btn-sm rounded-3 p-2 text-start border-cs bg-card hover-border-danger text-decoration-none" style="min-width: 130px;">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold text-white fs-6">@st.StartAt.ToString("HH:mm")</span>
+                                        <span class="badge bg-danger bg-opacity-25 text-danger fs-9">@st.RoomName</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center fs-9 text-secondary">
+                                        <span class="@(st.AvailableSeats > 0 ? "text-success" : "text-danger")">
+                                            @st.AvailableSeats / @st.TotalSeats ghế
+                                        </span>
+                                        <span class="text-gold fw-semibold">@st.BasePrice.ToString("#,##0") ₫</span>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

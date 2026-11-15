@@ -1,0 +1,186 @@
+@model CineSeat.Web.Models.MovieDetailsViewModel
+@{
+    ViewData["Title"] = $"{Model.Movie.Title} - Chi Tiết & Lịch Chiếu";
+    var movie = Model.Movie;
+}
+
+<div class="container pb-5">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb fs-8">
+            <li class="breadcrumb-item"><a asp-action="Index" class="text-secondary text-decoration-none"><i class="bi bi-house me-1"></i>Trang Chủ</a></li>
+            <li class="breadcrumb-item text-secondary">Phim Đang Chiếu</li>
+            <li class="breadcrumb-item active text-danger fw-bold" aria-current="page">@movie.Title</li>
+        </ol>
+    </nav>
+
+    <!-- THÔNG TIN PHIM BANNER -->
+    <div class="card bg-card border-cs rounded-4 p-4 p-md-5 mb-5 shadow-lg overflow-hidden position-relative">
+        <div class="row g-4 align-items-center">
+            <!-- Poster -->
+            <div class="col-md-4 col-lg-3 text-center">
+                <div class="movie-poster-container rounded-3 shadow-lg border border-secondary border-opacity-25" style="max-width: 260px; margin: 0 auto;">
+                    <img src="/images/@(string.IsNullOrEmpty(movie.PosterFile) ? "default-poster.jpg" : movie.PosterFile)" 
+                         alt="@movie.Title" 
+                         class="movie-poster-img"
+                         onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div class="col-md-8 col-lg-9">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge badge-rating badge-rating-@movie.AgeRating">@movie.AgeRating</span>
+                    <span class="badge bg-secondary bg-opacity-25 text-light fs-8">
+                        <i class="bi bi-clock me-1 text-danger"></i>@movie.DurationMin phút
+                    </span>
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-8">
+                        <i class="bi bi-shield-check me-1"></i>Đang chiếu tại hệ thống
+                    </span>
+                </div>
+
+                <h1 class="display-6 fw-extrabold text-white mb-2">@movie.Title</h1>
+                
+                <p class="text-gold fw-semibold fs-7 mb-3">
+                    <i class="bi bi-tags-fill me-1"></i>@movie.Genre
+                </p>
+
+                <div class="p-3 bg-surface rounded-3 border-cs mb-4">
+                    <div class="fw-bold fs-8 text-secondary text-uppercase mb-1">Tóm tắt nội dung phim</div>
+                    <p class="text-light opacity-90 small mb-0 lh-base">
+                        @(string.IsNullOrWhiteSpace(movie.Synopsis) ? "Nội dung phim đang được cập nhật." : movie.Synopsis)
+                    </p>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 small text-secondary">
+                    <div><strong class="text-white">Định dạng:</strong> 2D Digital, IMAX, Dolby Atmos</div>
+                    <div>•</div>
+                    <div><strong class="text-white">Ngôn ngữ:</strong> Phụ đề tiếng Việt</div>
+                    <div>•</div>
+                    <div><strong class="text-white">Tổng số suất chiếu:</strong> @Model.Showtimes.Count suất</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LỊCH CHIẾU THEO NGÀY VÀ CỤM RẠP -->
+    <div class="mb-4">
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-calendar3"></i></span>
+            Lịch Chiếu Sắp Tới
+        </h3>
+        <p class="text-secondary small">Chọn suất chiếu phù hợp để tiến hành chọn ghế trực tiếp từ sơ đồ rạp</p>
+    </div>
+
+    @if (!Model.Showtimes.Any())
+    {
+        <div class="alert alert-dark bg-card border-cs text-center py-5 rounded-4">
+            <i class="bi bi-calendar-x fs-1 text-secondary d-block mb-2"></i>
+            <h5 class="text-white">Hiện chưa có suất chiếu sắp tới cho bộ phim này</h5>
+            <p class="text-secondary small mb-3">Vui lòng quay lại sau hoặc xem các phim khác đang có lịch chiếu.</p>
+            <a asp-action="Index" class="btn btn-outline-danger btn-sm rounded-pill px-4">Xem danh sách phim khác</a>
+        </div>
+    }
+    else
+    {
+        <!-- Nhóm theo Ngày Chiếu -->
+        @foreach (var dateGroup in Model.GroupedByDate)
+        {
+            <div class="card bg-card border-cs rounded-4 p-4 mb-4 shadow-sm">
+                <!-- Header Ngày -->
+                <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-cs">
+                    <span class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger">
+                        <i class="bi bi-calendar-event fs-5"></i>
+                    </span>
+                    <div>
+                        <h5 class="fw-bold text-white mb-0">
+                            @dateGroup.Key.ToString("dddd, dd/MM/yyyy", new System.Globalization.CultureInfo("vi-VN"))
+                        </h5>
+                        <small class="text-gold fs-8">@(dateGroup.Key.Date == DateTime.Today ? "Hôm nay" : dateGroup.Key.Date == DateTime.Today.AddDays(1) ? "Ngày mai" : "Suất chiếu tương lai")</small>
+                    </div>
+                </div>
+
+                <!-- Nhóm theo Rạp trong ngày đó -->
+                @{
+                    var showtimesByCinema = dateGroup.Value.GroupBy(s => s.CinemaName).ToList();
+                }
+
+                @foreach (var cinemaGroup in showtimesByCinema)
+                {
+                    <div class="p-3 bg-surface rounded-3 border-cs mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-geo-alt-fill text-danger fs-5"></i>
+                                <span class="fw-bold text-white fs-6">@cinemaGroup.Key</span>
+                                <small class="text-secondary fs-8 d-none d-md-inline">(@cinemaGroup.First().Address)</small>
+                            </div>
+                            <span class="badge bg-secondary bg-opacity-50 fs-9">@cinemaGroup.Count() suất chiếu</span>
+                        </div>
+
+                        <!-- Lưới suất chiếu trong rạp -->
+                        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
+                            @foreach (var st in cinemaGroup)
+                            {
+                                int availablePct = st.TotalSeats > 0 ? (st.AvailableSeats * 100 / st.TotalSeats) : 0;
+                                string pctColor = availablePct > 50 ? "bg-success" : availablePct > 20 ? "bg-warning" : "bg-danger";
+
+                                <div class="col">
+                                    <div class="card bg-card border-cs h-100 p-3 rounded-3 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <span class="fs-5 fw-extrabold text-white">@st.StartAt.ToString("HH:mm")</span>
+                                                    <span class="text-secondary small">~ @st.EndAt.ToString("HH:mm")</span>
+                                                </div>
+                                                <span class="badge bg-dark border-cs text-gold fs-8 fw-bold">
+                                                    @st.BasePrice.ToString("#,##0") ₫
+                                                </span>
+                                            </div>
+
+                                            <div class="d-flex align-items-center gap-2 small text-secondary mb-3">
+                                                <i class="bi bi-door-open text-info"></i>
+                                                <span>@st.RoomName</span>
+                                                <span>•</span>
+                                                <span>@(st.StartAt.Hour >= 18 ? "Suất tối (+20%)" : "Suất ngày")</span>
+                                            </div>
+
+                                            <!-- Thanh trạng thái ghế trống -->
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between align-items-center fs-8 mb-1">
+                                                    <span class="text-secondary">Ghế trống:</span>
+                                                    <span class="fw-bold @(st.AvailableSeats > 0 ? "text-success" : "text-danger")">
+                                                        @st.AvailableSeats / @st.TotalSeats ghế
+                                                    </span>
+                                                </div>
+                                                <div class="progress bg-dark" style="height: 6px;">
+                                                    <div class="progress-bar @pctColor" role="progressbar" 
+                                                         style="width: @availablePct%;" aria-valuenow="@availablePct" aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        @if (st.AvailableSeats > 0)
+                                        {
+                                            <a asp-controller="Bookings" asp-action="SelectSeats" asp-route-id="@st.ShowtimeId" 
+                                               class="btn btn-cinema btn-sm w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-1">
+                                                <i class="bi bi-grid-3x3-gap-fill"></i>
+                                                <span>Chọn Ghế Ngay</span>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-secondary btn-sm w-100 rounded-pill py-2" disabled>
+                                                <i class="bi bi-x-circle me-1"></i>Hết Ghế
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

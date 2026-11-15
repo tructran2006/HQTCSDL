@@ -9,83 +9,99 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CineSeat | Đặt Vé Xem Phim</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <!-- Google Fonts -->
+    <title>@ViewData["Title"] - CineSeat | Rạp Chiếu Phim Trực Tuyến</title>
+    <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <!-- CineSeat Custom Modern CSS -->
+    <link rel="stylesheet" href="~/css/cineseat.css" asp-append-version="true" />
 </head>
-<body class="bg-dark text-light d-flex flex-column min-vh-100">
-    <!-- Header / Navbar -->
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar Khách Hàng -->
     <header class="sticky-top">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-black bg-opacity-75 backdrop-blur border-bottom border-secondary border-opacity-25 py-2">
+        <nav class="navbar navbar-expand-lg navbar-cineseat py-2">
             <div class="container">
-                <a class="navbar-brand fw-bold d-flex align-items-center gap-2 fs-4 text-warning" asp-controller="Movies" asp-action="Index">
-                    <i class="bi bi-film fs-3 text-warning"></i>
-                    <span>Cine<span class="text-white">Seat</span></span>
-                    <span class="badge bg-danger text-uppercase ms-1 fs-9 tracking-wider">Oracle 23ai</span>
+                <!-- Brand / Logo -->
+                <a class="navbar-brand fw-extrabold d-flex align-items-center gap-2 fs-4 text-decoration-none" asp-controller="Movies" asp-action="Index">
+                    <span class="p-2 rounded-3 bg-danger bg-opacity-25 text-danger d-inline-flex align-items-center justify-content-center">
+                        <i class="bi bi-ticket-perforated-fill fs-3 text-danger"></i>
+                    </span>
+                    <span class="fw-bold tracking-tight text-white">
+                        Cine<span class="text-danger">Seat</span>
+                    </span>
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 fs-9 ms-1 text-uppercase">Oracle 23ai</span>
                 </a>
                 
-                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-                    <span class="navbar-toggler-icon"></span>
+                <button class="navbar-toggler border-0 shadow-none text-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                    <i class="bi bi-list fs-2"></i>
                 </button>
 
                 <div class="collapse navbar-collapse" id="navbarMain">
+                    <!-- Menu Trái -->
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-1">
                         <li class="nav-item">
-                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Movies" ? "active text-warning fw-semibold" : "")" 
+                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Movies" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active text-danger fw-bold" : "text-light")" 
                                asp-controller="Movies" asp-action="Index">
-                                <i class="bi bi-camera-reels me-1"></i> Phim Đang Chiếu
+                                <i class="bi bi-film me-1"></i> Trang Chủ & Phim
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "active text-warning fw-semibold" : "")" 
+                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["action"]?.ToString() == "CinemaShowtimes" ? "active text-danger fw-bold" : "text-light")" 
+                               asp-controller="Movies" asp-action="CinemaShowtimes">
+                                <i class="bi bi-geo-alt me-1"></i> Lịch Chiếu Theo Rạp
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "active text-danger fw-bold" : "text-light")" 
                                asp-controller="Bookings" asp-action="History">
-                                <i class="bi bi-clock-history me-1"></i> Lịch Sử Đặt Vé
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-3 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active text-warning fw-semibold" : "")" 
-                               asp-controller="Admin" asp-action="Dashboard">
-                                <i class="bi bi-speedometer2 me-1"></i> Dashboard & Audit
+                                <i class="bi bi-receipt me-1"></i> Vé Của Tôi
                             </a>
                         </li>
                     </ul>
 
-                    <!-- Demo User Switcher -->
-                    <div class="d-flex align-items-center gap-3">
+                    <!-- Nút sang Cổng Quản trị Admin & Dropdown Chọn Khách Demo -->
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- Switch sang Admin Portal -->
+                        <a asp-controller="Admin" asp-action="Dashboard" class="btn btn-outline-warning btn-sm rounded-pill px-3 py-1 fw-semibold d-flex align-items-center gap-1">
+                            <i class="bi bi-shield-lock-fill"></i>
+                            <span>Trang Quản Trị</span>
+                        </a>
+
+                        <!-- Dropdown Chọn Tài Khoản Demo -->
                         <div class="dropdown">
-                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2 text-start rounded-pill px-3 py-1 bg-dark bg-opacity-50" 
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-1 bg-surface border-cs" 
                                     type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <span class="avatar-circle bg-warning text-dark fw-bold">@currentUser.FullName.Substring(0, 1)</span>
-                                <div>
+                                <span class="user-avatar-circle">@currentUser.FullName.Substring(0, 1)</span>
+                                <div class="text-start d-none d-sm-block">
                                     <div class="small fw-semibold text-white lh-1">@currentUser.FullName</div>
-                                    <small class="text-secondary fs-8">Khách hàng demo (ID: @currentUser.UserId)</small>
+                                    <small class="text-secondary fs-9">Tài khoản demo #@currentUser.UserId</small>
                                 </div>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-secondary border-opacity-50 p-2" style="min-width: 280px; max-height: 360px; overflow-y: auto;">
-                                <li class="dropdown-header text-uppercase fs-8 fw-bold text-warning">
-                                    <i class="bi bi-people me-1"></i> Chọn tài khoản mô phỏng
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-cs p-2 bg-card" style="min-width: 290px; max-height: 420px; overflow-y: auto;">
+                                <li class="dropdown-header text-uppercase fs-9 fw-bold text-gold px-2">
+                                    <i class="bi bi-people-fill me-1"></i> Chuyển đổi khách hàng demo (13 Users)
                                 </li>
+                                <li><hr class="dropdown-divider border-cs"></li>
                                 @foreach (var u in allUsers)
                                 {
                                     <li>
                                         <form asp-controller="Movies" asp-action="SwitchUser" method="post" class="d-inline w-100">
+                                            @Html.AntiForgeryToken()
                                             <input type="hidden" name="userId" value="@u.UserId" />
-                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
-                                            <button type="submit" class="dropdown-item d-flex align-items-center justify-content-between rounded py-2 @(u.UserId == currentUser.UserId ? "bg-warning text-dark fw-bold" : "")">
+                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                            <button type="submit" class="dropdown-item d-flex align-items-center justify-content-between rounded py-2 mb-1 @(u.UserId == currentUser.UserId ? "bg-danger bg-opacity-20 text-white border-start border-3 border-danger" : "text-light")">
                                                 <div>
-                                                    <div>@u.FullName</div>
-                                                    <small class="@(u.UserId == currentUser.UserId ? "text-dark opacity-75" : "text-secondary") fs-8">@u.Email</small>
+                                                    <div class="fw-semibold fs-7">@u.FullName</div>
+                                                    <small class="text-secondary fs-8">@u.Email</small>
                                                 </div>
                                                 @if (u.UserId == currentUser.UserId)
                                                 {
-                                                    <i class="bi bi-check-circle-fill text-dark ms-2"></i>
+                                                    <span class="badge bg-danger rounded-pill fs-9">Đang chọn</span>
                                                 }
                                             </button>
                                         </form>
@@ -103,18 +119,18 @@
     <div class="container pt-3">
         @if (TempData["SuccessMessage"] != null)
         {
-            <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-3 border-0 shadow-sm" role="alert">
+            <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-3 border-0 shadow-lg bg-success bg-opacity-25 text-white" role="alert">
                 <i class="bi bi-check-circle-fill fs-4 text-success"></i>
                 <div class="flex-grow-1">@TempData["SuccessMessage"]</div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }
         @if (TempData["ErrorMessage"] != null)
         {
-            <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-3 border-0 shadow-sm" role="alert">
+            <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-3 border-0 shadow-lg bg-danger bg-opacity-25 text-white" role="alert">
                 <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
                 <div class="flex-grow-1">@TempData["ErrorMessage"]</div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }
     </div>
@@ -125,15 +141,25 @@
     </main>
 
     <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-black border-top border-secondary border-opacity-25">
-        <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between small text-secondary gap-2">
-            <div>
-                <span class="fw-bold text-white">CineSeat</span> &copy; 2026 - Đề tài 06: Hệ Quản Trị Cơ Sở Dữ Liệu (HUFLIT)
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span><i class="bi bi-database me-1 text-warning"></i> Oracle 23ai Free (Docker)</span>
-                <span><i class="bi bi-code-slash me-1 text-info"></i> ASP.NET Core 8 (.NET 8)</span>
-                <span><i class="bi bi-shield-check me-1 text-success"></i> PL/SQL PKG_BOOKING</span>
+    <footer class="footer mt-auto py-4 bg-surface border-top border-cs">
+        <div class="container">
+            <div class="row g-4 align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <div class="fw-bold fs-5 text-white mb-1">
+                        Cine<span class="text-danger">Seat</span> Cinema
+                    </div>
+                    <p class="text-secondary small mb-0">
+                        Đề tài 06 - Môn Hệ Quản Trị Cơ Sở Dữ Liệu • HUFLIT
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <div class="d-flex flex-wrap justify-content-center justify-content-md-end gap-3 small text-secondary">
+                        <span class="badge bg-dark border-cs text-warning"><i class="bi bi-database me-1"></i> Oracle 23ai Free</span>
+                        <span class="badge bg-dark border-cs text-info"><i class="bi bi-box-seam me-1"></i> Docker Container</span>
+                        <span class="badge bg-dark border-cs text-success"><i class="bi bi-code-slash me-1"></i> ASP.NET Core 8</span>
+                        <span class="badge bg-dark border-cs text-danger"><i class="bi bi-shield-check me-1"></i> PKG_BOOKING</span>
+                    </div>
+                </div>
             </div>
         </div>
     </footer>
