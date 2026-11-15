@@ -5,6 +5,8 @@ services:
     restart: always
     environment:
       - ORACLE_PASSWORD=CineSeat123
+      - NLS_LANG=AMERICAN_AMERICA.AL32UTF8
+      - LANG=C.UTF-8
     ports:
       - "1521:1521"
     volumes:
