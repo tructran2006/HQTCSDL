@@ -67,7 +67,7 @@ namespace CineSeat.Web.Controllers
                 {
                     Success = false,
                     ErrorCode = 20001,
-                    Message = "Mỗi đơn chỉ được đặt từ 1 đến 8 ghế (ORA-20001)."
+                    Message = "Mỗi đơn chỉ được đặt từ 1 đến 8 ghế."
                 });
             }
 

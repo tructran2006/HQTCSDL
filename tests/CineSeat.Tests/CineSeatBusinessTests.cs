@@ -515,4 +515,53 @@ public class CineSeatBusinessTests
         Assert.Equal(newUser.UserId, retrievedUser.UserId);
         Assert.Equal("0987654321", retrievedUser.Phone);
     }
+
+    [Fact]
+    public void Test9_PosterHelper_ResolvesRealImages_Successfully()
+    {
+        string wwwroot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "CineSeat.Web", "wwwroot"));
+        CineSeat.Web.Helpers.PosterHelper.Initialize(wwwroot);
+
+        // 1. Phim có dấu hai chấm: "Dune: Part Two" -> "Dune Part Two.jpg"
+        string duneUrl = CineSeat.Web.Helpers.PosterHelper.GetPosterUrl("poster-1.jpg", "Dune: Part Two", 1);
+        Assert.Equal("/images/Dune Part Two.jpg", duneUrl);
+
+        // 2. Phim "Oppenheimer" -> "Oppenheimer.jpg"
+        string oppUrl = CineSeat.Web.Helpers.PosterHelper.GetPosterUrl("poster-2.jpg", "Oppenheimer", 2);
+        Assert.Equal("/images/Oppenheimer.jpg", oppUrl);
+
+        // 3. Phim "Mai" -> "Mai.jpg"
+        string maiUrl = CineSeat.Web.Helpers.PosterHelper.GetPosterUrl("poster-9.jpg", "Mai", 9);
+        Assert.Equal("/images/Mai.jpg", maiUrl);
+
+        // 4. Phim tiếng Việt "Lật Mặt 7: Một Điều Ước" -> "Lật Mặt 7 Một Điều Ước.jpg"
+        string latMatUrl = CineSeat.Web.Helpers.PosterHelper.GetPosterUrl("poster-8.jpg", "Lật Mặt 7: Một Điều Ước", 8);
+        Assert.Equal("/images/Lật Mặt 7 Một Điều Ước.jpg", latMatUrl);
+    }
+
+    [Fact]
+    public async Task Test10_AdminCRUD_CinemasAndPromotions_Success()
+    {
+        var service = CreateService();
+
+        // 1. Kiểm tra thêm & quản lý mã khuyến mãi mới
+        string promoCode = $"TEST{Random.Shared.Next(1000, 9999)}";
+        var promoInput = new CreatePromotionInputModel
+        {
+            PromoCode = promoCode,
+            DiscountPct = 25,
+            ValidUntil = DateTime.Today.AddDays(30)
+        };
+        int newPromoId = await service.AddPromotionAsync(promoInput);
+        Assert.True(newPromoId > 0);
+
+        var allPromos = await service.GetAllPromotionsAdminAsync();
+        var foundPromo = allPromos.FirstOrDefault(p => p.PromotionId == newPromoId);
+        Assert.NotNull(foundPromo);
+        Assert.Equal(promoCode, foundPromo.PromoCode);
+        Assert.Equal(25, foundPromo.DiscountPct);
+
+        // Dọn dẹp mã khuyến mãi thử nghiệm
+        await service.DeletePromotionAsync(newPromoId);
+    }
 }

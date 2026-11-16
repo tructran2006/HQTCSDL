@@ -63,7 +63,7 @@ namespace CineSeat.Web.Controllers
         }
 
         // GET: /Movies/CinemaShowtimes (Lịch chiếu theo từng rạp)
-        public async Task<IActionResult> CinemaShowtimes(int? cinemaId)
+        public async Task<IActionResult> CinemaShowtimes(int? cinemaId, string? date = null)
         {
             var cinemas = await _cineSeatService.GetCinemasAsync();
             if (!cinemas.Any())
@@ -76,12 +76,19 @@ namespace CineSeat.Web.Controllers
             var selectedCinema = cinemas.FirstOrDefault(c => c.CinemaId == selectedId) ?? cinemas.First();
             var showtimes = await _cineSeatService.GetShowtimesByCinemaIdAsync(selectedId);
 
+            DateTime? selectedDate = null;
+            if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var d))
+            {
+                selectedDate = d.Date;
+            }
+
             var vm = new CinemaShowtimesViewModel
             {
                 Cinemas = cinemas,
                 SelectedCinemaId = selectedId,
                 SelectedCinema = selectedCinema,
-                Showtimes = showtimes
+                Showtimes = showtimes,
+                SelectedDate = selectedDate
             };
 
             return View(vm);

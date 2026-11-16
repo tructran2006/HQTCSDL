@@ -1178,6 +1178,598 @@ namespace CineSeat.Web.Services
             }
         }
 
+        public async Task UpdateMovieAsync(UpdateMovieInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE movies
+                                SET title = :p_title,
+                                    genre = :p_genre,
+                                    duration_min = :p_duration,
+                                    age_rating = :p_rating,
+                                    synopsis = :p_synopsis,
+                                    poster_file = :p_poster,
+                                    is_active = :p_active
+                                WHERE movie_id = :p_id";
+
+            cmd.Parameters.Add("p_title", OracleDbType.NVarchar2, input.Title.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_genre", OracleDbType.NVarchar2, input.Genre.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_duration", OracleDbType.Decimal, input.DurationMin, ParameterDirection.Input);
+            cmd.Parameters.Add("p_rating", OracleDbType.Varchar2, input.AgeRating.Trim().ToUpper(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_synopsis", OracleDbType.NVarchar2, string.IsNullOrWhiteSpace(input.Synopsis) ? DBNull.Value : input.Synopsis.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_poster", OracleDbType.Varchar2, string.IsNullOrWhiteSpace(input.PosterFile) ? "default-poster.jpg" : input.PosterFile.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_active", OracleDbType.Decimal, input.IsActive ? 1 : 0, ParameterDirection.Input);
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, input.MovieId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error updating movie #{Id}", input.MovieId);
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteMovieAsync(int movieId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            // Kiểm tra xem phim đã có suất chiếu nào chưa
+            int showtimeCount = 0;
+            using (var cmdCheck = conn.CreateCommand())
+            {
+                cmdCheck.Transaction = transaction;
+                cmdCheck.CommandText = "SELECT COUNT(*) FROM showtimes WHERE movie_id = :p_id";
+                cmdCheck.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+                showtimeCount = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+            }
+
+            if (showtimeCount > 0)
+            {
+                // Nếu đã có suất chiếu, chuyển sang trạng thái ngừng chiếu (soft delete) để không vướng ràng buộc FK
+                using (var cmdSoft = conn.CreateCommand())
+                {
+                    cmdSoft.Transaction = transaction;
+                    cmdSoft.CommandText = "UPDATE movies SET is_active = 0 WHERE movie_id = :p_id";
+                    cmdSoft.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+                    await cmdSoft.ExecuteNonQueryAsync();
+                }
+                transaction.Commit();
+                return false; // Soft deleted
+            }
+            else
+            {
+                // Nếu chưa có suất chiếu nào, xóa hẳn khỏi CSDL
+                using (var cmdDel = conn.CreateCommand())
+                {
+                    cmdDel.Transaction = transaction;
+                    cmdDel.CommandText = "DELETE FROM movies WHERE movie_id = :p_id";
+                    cmdDel.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+                    await cmdDel.ExecuteNonQueryAsync();
+                }
+                transaction.Commit();
+                return true; // Hard deleted
+            }
+        }
+
+        public async Task<bool> CheckShowtimeOverlapAsync(int roomId, DateTime startAt, DateTime endAt, int excludeShowtimeId = 0)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"SELECT COUNT(*) FROM showtimes
+                                WHERE room_id = :p_room_id
+                                  AND is_active = 1
+                                  AND (:p_exclude_id = 0 OR showtime_id != :p_exclude_id)
+                                  AND start_at < :p_end_at
+                                  AND end_at > :p_start_at";
+
+            cmd.Parameters.Add("p_room_id", OracleDbType.Decimal, roomId, ParameterDirection.Input);
+            cmd.Parameters.Add("p_exclude_id", OracleDbType.Decimal, excludeShowtimeId, ParameterDirection.Input);
+            cmd.Parameters.Add("p_end_at", OracleDbType.TimeStamp, endAt, ParameterDirection.Input);
+            cmd.Parameters.Add("p_start_at", OracleDbType.TimeStamp, startAt, ParameterDirection.Input);
+
+            int count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            return count > 0;
+        }
+
+        public async Task UpdateShowtimeAsync(UpdateShowtimeInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE showtimes
+                                SET start_at = :p_start,
+                                    end_at = :p_end,
+                                    base_price = :p_price,
+                                    is_active = :p_active
+                                WHERE showtime_id = :p_id";
+
+            cmd.Parameters.Add("p_start", OracleDbType.TimeStamp, input.StartAt, ParameterDirection.Input);
+            cmd.Parameters.Add("p_end", OracleDbType.TimeStamp, input.EndAt, ParameterDirection.Input);
+            cmd.Parameters.Add("p_price", OracleDbType.Decimal, input.BasePrice, ParameterDirection.Input);
+            cmd.Parameters.Add("p_active", OracleDbType.Decimal, input.IsActive ? 1 : 0, ParameterDirection.Input);
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, input.ShowtimeId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error updating showtime #{Id}", input.ShowtimeId);
+                throw;
+            }
+        }
+
+        public async Task DeleteShowtimeAsync(int showtimeId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            // Kiểm tra xem đã có ghế HELD hoặc SOLD chưa
+            using (var cmdCheck = conn.CreateCommand())
+            {
+                cmdCheck.Transaction = transaction;
+                cmdCheck.CommandText = "SELECT COUNT(*) FROM showtime_seats WHERE showtime_id = :p_id AND status IN ('HELD', 'SOLD')";
+                cmdCheck.Parameters.Add("p_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
+                int activeSeats = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+                if (activeSeats > 0)
+                {
+                    throw new InvalidOperationException("Không thể xóa suất chiếu đã có vé đang giữ hoặc đã bán. Bạn có thể chuyển sang trạng thái ngừng hoạt động.");
+                }
+            }
+
+            // Kiểm tra xem có đơn đặt vé nào chưa
+            using (var cmdCheckB = conn.CreateCommand())
+            {
+                cmdCheckB.Transaction = transaction;
+                cmdCheckB.CommandText = "SELECT COUNT(*) FROM bookings WHERE showtime_id = :p_id";
+                cmdCheckB.Parameters.Add("p_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
+                int bookingsCount = Convert.ToInt32(await cmdCheckB.ExecuteScalarAsync());
+                if (bookingsCount > 0)
+                {
+                    throw new InvalidOperationException("Không thể xóa suất chiếu đã có lịch sử đặt vé. Vui lòng chuyển sang trạng thái ngừng hoạt động.");
+                }
+            }
+
+            try
+            {
+                // Xóa ghế của suất chiếu trong SHOWTIME_SEATS
+                using (var cmdDelSeats = conn.CreateCommand())
+                {
+                    cmdDelSeats.Transaction = transaction;
+                    cmdDelSeats.CommandText = "DELETE FROM showtime_seats WHERE showtime_id = :p_id";
+                    cmdDelSeats.Parameters.Add("p_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
+                    await cmdDelSeats.ExecuteNonQueryAsync();
+                }
+
+                // Xóa suất chiếu trong SHOWTIMES
+                using (var cmdDelSt = conn.CreateCommand())
+                {
+                    cmdDelSt.Transaction = transaction;
+                    cmdDelSt.CommandText = "DELETE FROM showtimes WHERE showtime_id = :p_id";
+                    cmdDelSt.Parameters.Add("p_id", OracleDbType.Decimal, showtimeId, ParameterDirection.Input);
+                    await cmdDelSt.ExecuteNonQueryAsync();
+                }
+
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error deleting showtime #{Id}", showtimeId);
+                throw;
+            }
+        }
+
+        public async Task<int> AddCinemaAsync(CreateCinemaInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"INSERT INTO cinemas(cinema_id, cinema_name, address)
+                                VALUES((SELECT NVL(MAX(cinema_id), 0) + 1 FROM cinemas), :p_name, :p_address)
+                                RETURNING cinema_id INTO :p_new_id";
+
+            cmd.Parameters.Add("p_name", OracleDbType.NVarchar2, input.CinemaName.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_address", OracleDbType.NVarchar2, input.Address.Trim(), ParameterDirection.Input);
+
+            var pNewId = new OracleParameter("p_new_id", OracleDbType.Decimal, ParameterDirection.Output);
+            cmd.Parameters.Add(pNewId);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+                return Convert.ToInt32(pNewId.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error adding cinema");
+                throw;
+            }
+        }
+
+        public async Task UpdateCinemaAsync(UpdateCinemaInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE cinemas
+                                SET cinema_name = :p_name,
+                                    address = :p_address
+                                WHERE cinema_id = :p_id";
+
+            cmd.Parameters.Add("p_name", OracleDbType.NVarchar2, input.CinemaName.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_address", OracleDbType.NVarchar2, input.Address.Trim(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, input.CinemaId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error updating cinema #{Id}", input.CinemaId);
+                throw;
+            }
+        }
+
+        public async Task DeleteCinemaAsync(int cinemaId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            // Kiểm tra xem cụm rạp đã có suất chiếu nào chưa
+            using (var cmdCheck = conn.CreateCommand())
+            {
+                cmdCheck.Transaction = transaction;
+                cmdCheck.CommandText = "SELECT COUNT(*) FROM showtimes s JOIN rooms r ON r.room_id = s.room_id WHERE r.cinema_id = :p_id";
+                cmdCheck.Parameters.Add("p_id", OracleDbType.Decimal, cinemaId, ParameterDirection.Input);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+                if (count > 0)
+                {
+                    throw new InvalidOperationException("Không thể xóa cụm rạp đã có lịch sử suất chiếu.");
+                }
+            }
+
+            try
+            {
+                // Xóa ghế của các phòng thuộc rạp này
+                using (var cmdDelSeats = conn.CreateCommand())
+                {
+                    cmdDelSeats.Transaction = transaction;
+                    cmdDelSeats.CommandText = "DELETE FROM seats WHERE room_id IN (SELECT room_id FROM rooms WHERE cinema_id = :p_id)";
+                    cmdDelSeats.Parameters.Add("p_id", OracleDbType.Decimal, cinemaId, ParameterDirection.Input);
+                    await cmdDelSeats.ExecuteNonQueryAsync();
+                }
+
+                // Xóa các phòng
+                using (var cmdDelRooms = conn.CreateCommand())
+                {
+                    cmdDelRooms.Transaction = transaction;
+                    cmdDelRooms.CommandText = "DELETE FROM rooms WHERE cinema_id = :p_id";
+                    cmdDelRooms.Parameters.Add("p_id", OracleDbType.Decimal, cinemaId, ParameterDirection.Input);
+                    await cmdDelRooms.ExecuteNonQueryAsync();
+                }
+
+                // Xóa cụm rạp
+                using (var cmdDelC = conn.CreateCommand())
+                {
+                    cmdDelC.Transaction = transaction;
+                    cmdDelC.CommandText = "DELETE FROM cinemas WHERE cinema_id = :p_id";
+                    cmdDelC.Parameters.Add("p_id", OracleDbType.Decimal, cinemaId, ParameterDirection.Input);
+                    await cmdDelC.ExecuteNonQueryAsync();
+                }
+
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error deleting cinema #{Id}", cinemaId);
+                throw;
+            }
+        }
+
+        public async Task<int> AddRoomAsync(CreateRoomInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            int newRoomId = 0;
+
+            try
+            {
+                // 1. Thêm phòng chiếu mới vào bảng ROOMS
+                using (var cmdRoom = conn.CreateCommand())
+                {
+                    cmdRoom.Transaction = transaction;
+                    cmdRoom.CommandText = @"INSERT INTO rooms(room_id, cinema_id, room_name)
+                                            VALUES((SELECT NVL(MAX(room_id), 0) + 1 FROM rooms), :p_cinema_id, :p_room_name)
+                                            RETURNING room_id INTO :p_new_id";
+
+                    cmdRoom.Parameters.Add("p_cinema_id", OracleDbType.Decimal, input.CinemaId, ParameterDirection.Input);
+                    cmdRoom.Parameters.Add("p_room_name", OracleDbType.NVarchar2, input.RoomName.Trim(), ParameterDirection.Input);
+
+                    var pNewId = new OracleParameter("p_new_id", OracleDbType.Decimal, ParameterDirection.Output);
+                    cmdRoom.Parameters.Add(pNewId);
+
+                    await cmdRoom.ExecuteNonQueryAsync();
+                    newRoomId = Convert.ToInt32(pNewId.Value.ToString());
+                }
+
+                // 2. Lấy max seat_id hiện tại để sinh 40 ghế không bị đụng sequence
+                int baseSeatId = 0;
+                using (var cmdMaxSeat = conn.CreateCommand())
+                {
+                    cmdMaxSeat.Transaction = transaction;
+                    cmdMaxSeat.CommandText = "SELECT NVL(MAX(seat_id), 0) FROM seats";
+                    baseSeatId = Convert.ToInt32(await cmdMaxSeat.ExecuteScalarAsync());
+                }
+
+                // 3. Tự động sinh 40 ghế vật lý (Hàng A-C STANDARD, Hàng D-E VIP)
+                string[] rows = { "A", "B", "C", "D", "E" };
+                int currentSeatId = baseSeatId;
+
+                foreach (var row in rows)
+                {
+                    string seatType = (row == "D" || row == "E") ? "VIP" : "STANDARD";
+                    for (int seatNum = 1; seatNum <= 8; seatNum++)
+                    {
+                        currentSeatId++;
+                        using var cmdSeat = conn.CreateCommand();
+                        cmdSeat.Transaction = transaction;
+                        cmdSeat.CommandText = @"INSERT INTO seats(seat_id, room_id, row_label, seat_number, seat_type)
+                                                VALUES(:p_seat_id, :p_room_id, :p_row, :p_num, :p_type)";
+
+                        cmdSeat.Parameters.Add("p_seat_id", OracleDbType.Decimal, currentSeatId, ParameterDirection.Input);
+                        cmdSeat.Parameters.Add("p_room_id", OracleDbType.Decimal, newRoomId, ParameterDirection.Input);
+                        cmdSeat.Parameters.Add("p_row", OracleDbType.Varchar2, row, ParameterDirection.Input);
+                        cmdSeat.Parameters.Add("p_num", OracleDbType.Decimal, seatNum, ParameterDirection.Input);
+                        cmdSeat.Parameters.Add("p_type", OracleDbType.Varchar2, seatType, ParameterDirection.Input);
+
+                        await cmdSeat.ExecuteNonQueryAsync();
+                    }
+                }
+
+                transaction.Commit();
+                return newRoomId;
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error adding room and generating seats");
+                throw;
+            }
+        }
+
+        public async Task DeleteRoomAsync(int roomId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            // Kiểm tra xem phòng đã có suất chiếu nào chưa
+            using (var cmdCheck = conn.CreateCommand())
+            {
+                cmdCheck.Transaction = transaction;
+                cmdCheck.CommandText = "SELECT COUNT(*) FROM showtimes WHERE room_id = :p_id";
+                cmdCheck.Parameters.Add("p_id", OracleDbType.Decimal, roomId, ParameterDirection.Input);
+                int count = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+                if (count > 0)
+                {
+                    throw new InvalidOperationException("Không thể xóa phòng chiếu đã có lịch sử suất chiếu.");
+                }
+            }
+
+            try
+            {
+                // Xóa ghế của phòng này trong SEATS
+                using (var cmdDelSeats = conn.CreateCommand())
+                {
+                    cmdDelSeats.Transaction = transaction;
+                    cmdDelSeats.CommandText = "DELETE FROM seats WHERE room_id = :p_id";
+                    cmdDelSeats.Parameters.Add("p_id", OracleDbType.Decimal, roomId, ParameterDirection.Input);
+                    await cmdDelSeats.ExecuteNonQueryAsync();
+                }
+
+                // Xóa phòng trong ROOMS
+                using (var cmdDelR = conn.CreateCommand())
+                {
+                    cmdDelR.Transaction = transaction;
+                    cmdDelR.CommandText = "DELETE FROM rooms WHERE room_id = :p_id";
+                    cmdDelR.Parameters.Add("p_id", OracleDbType.Decimal, roomId, ParameterDirection.Input);
+                    await cmdDelR.ExecuteNonQueryAsync();
+                }
+
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error deleting room #{Id}", roomId);
+                throw;
+            }
+        }
+
+        public async Task<List<PromotionAdminModel>> GetAllPromotionsAdminAsync()
+        {
+            var list = new List<PromotionAdminModel>();
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"SELECT p.promotion_id, p.promo_code, p.discount_pct, p.valid_until, p.is_active,
+                                       (SELECT COUNT(*) FROM bookings b WHERE b.promotion_id = p.promotion_id) AS used_count
+                                FROM promotions p
+                                ORDER BY p.valid_until DESC";
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new PromotionAdminModel
+                {
+                    PromotionId = Convert.ToInt32(reader["promotion_id"]),
+                    PromoCode = reader["promo_code"]?.ToString() ?? string.Empty,
+                    DiscountPct = Convert.ToDecimal(reader["discount_pct"]),
+                    ValidUntil = Convert.ToDateTime(reader["valid_until"]),
+                    IsActive = Convert.ToInt32(reader["is_active"]) == 1,
+                    UsedCount = Convert.ToInt32(reader["used_count"])
+                });
+            }
+
+            return list;
+        }
+
+        public async Task<int> AddPromotionAsync(CreatePromotionInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"INSERT INTO promotions(promotion_id, promo_code, discount_pct, valid_until, is_active)
+                                VALUES((SELECT NVL(MAX(promotion_id), 0) + 1 FROM promotions), :p_code, :p_pct, :p_valid, 1)
+                                RETURNING promotion_id INTO :p_new_id";
+
+            cmd.Parameters.Add("p_code", OracleDbType.Varchar2, input.PromoCode.Trim().ToUpperInvariant(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_pct", OracleDbType.Decimal, input.DiscountPct, ParameterDirection.Input);
+            cmd.Parameters.Add("p_valid", OracleDbType.Date, input.ValidUntil.Date, ParameterDirection.Input);
+
+            var pNewId = new OracleParameter("p_new_id", OracleDbType.Decimal, ParameterDirection.Output);
+            cmd.Parameters.Add(pNewId);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+                return Convert.ToInt32(pNewId.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error adding promotion");
+                throw;
+            }
+        }
+
+        public async Task UpdatePromotionAsync(UpdatePromotionInputModel input)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE promotions
+                                SET promo_code = :p_code,
+                                    discount_pct = :p_pct,
+                                    valid_until = :p_valid,
+                                    is_active = :p_active
+                                WHERE promotion_id = :p_id";
+
+            cmd.Parameters.Add("p_code", OracleDbType.Varchar2, input.PromoCode.Trim().ToUpperInvariant(), ParameterDirection.Input);
+            cmd.Parameters.Add("p_pct", OracleDbType.Decimal, input.DiscountPct, ParameterDirection.Input);
+            cmd.Parameters.Add("p_valid", OracleDbType.Date, input.ValidUntil.Date, ParameterDirection.Input);
+            cmd.Parameters.Add("p_active", OracleDbType.Decimal, input.IsActive ? 1 : 0, ParameterDirection.Input);
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, input.PromotionId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error updating promotion #{Id}", input.PromotionId);
+                throw;
+            }
+        }
+
+        public async Task TogglePromotionActiveAsync(int promotionId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+
+            cmd.CommandText = @"UPDATE promotions
+                                SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+                                WHERE promotion_id = :p_id";
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, promotionId, ParameterDirection.Input);
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                _logger.LogError(ex, "Error toggling promotion active");
+                throw;
+            }
+        }
+
+        public async Task DeletePromotionAsync(int promotionId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var transaction = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+
+            // Kiểm tra xem mã khuyến mãi đã được đơn nào sử dụng chưa
+            int usedCount = 0;
+            using (var cmdCheck = conn.CreateCommand())
+            {
+                cmdCheck.Transaction = transaction;
+                cmdCheck.CommandText = "SELECT COUNT(*) FROM bookings WHERE promotion_id = :p_id";
+                cmdCheck.Parameters.Add("p_id", OracleDbType.Decimal, promotionId, ParameterDirection.Input);
+                usedCount = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
+            }
+
+            if (usedCount > 0)
+            {
+                // Nếu đã được sử dụng, chỉ tắt trạng thái hoạt động (is_active = 0)
+                using (var cmdSoft = conn.CreateCommand())
+                {
+                    cmdSoft.Transaction = transaction;
+                    cmdSoft.CommandText = "UPDATE promotions SET is_active = 0 WHERE promotion_id = :p_id";
+                    cmdSoft.Parameters.Add("p_id", OracleDbType.Decimal, promotionId, ParameterDirection.Input);
+                    await cmdSoft.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                // Nếu chưa từng được sử dụng, xóa hẳn
+                using (var cmdDel = conn.CreateCommand())
+                {
+                    cmdDel.Transaction = transaction;
+                    cmdDel.CommandText = "DELETE FROM promotions WHERE promotion_id = :p_id";
+                    cmdDel.Parameters.Add("p_id", OracleDbType.Decimal, promotionId, ParameterDirection.Input);
+                    await cmdDel.ExecuteNonQueryAsync();
+                }
+            }
+
+            transaction.Commit();
+        }
+
         #endregion
     }
 }

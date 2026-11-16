@@ -9,12 +9,12 @@
 }
 
 <div class="container pb-5">
-    <!-- 1. HERO BANNER CHUYÊN NGHIỆP 2 CỘT (SPLIT HERO BANNER) TỪ ORACLE 23ai -->
+    <!-- 1. HERO BANNER CHUYÊN NGHIỆP 2 CỘT (SPLIT HERO BANNER) -->
     @if (heroMovie != null)
     {
         <div class="hero-split-banner p-4 p-md-5 mb-5 text-white position-relative overflow-hidden shadow-lg">
             <!-- Nền mờ nghệ thuật lấy từ poster chính phim -->
-            <div class="hero-split-banner-bg" style="background-image: url('/images/@(string.IsNullOrEmpty(heroMovie.PosterFile) ? "default-poster.jpg" : heroMovie.PosterFile)');"></div>
+            <div class="hero-split-banner-bg" style="background-image: url('@PosterHelper.GetPosterUrl(heroMovie.PosterFile, heroMovie.Title, heroMovie.MovieId)');"></div>
             <div class="position-absolute top-0 start-0 w-100 h-100 hero-split-overlay"></div>
             
             <div class="row align-items-center g-4 position-relative z-1">
@@ -63,9 +63,9 @@
                 <!-- Cột phải (35%): Poster chính thức sắc nét bo góc 16px, đổ bóng sâu & viền sáng -->
                 <div class="col-lg-5 col-xl-4 text-center text-lg-end d-none d-lg-block">
                     <div class="hero-poster-wrapper d-inline-block position-relative">
-                        <img src="/images/@(string.IsNullOrEmpty(heroMovie.PosterFile) ? "default-poster.jpg" : heroMovie.PosterFile)" 
+                        <img src="@PosterHelper.GetPosterUrl(heroMovie.PosterFile, heroMovie.Title, heroMovie.MovieId)" 
                              alt="@heroMovie.Title" 
-                             class="hero-poster-img"
+                             class="hero-poster-img poster-fit-top"
                              onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                         <span class="hero-poster-badge badge badge-rating badge-rating-@heroMovie.AgeRating fs-8">
                             @heroMovie.AgeRating
@@ -137,7 +137,7 @@
                 <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-camera-reels"></i></span>
                 Phim Đang Chiếu Rạp
             </h3>
-            <p class="text-secondary small mb-0">Hiển thị @Model.Count bộ phim từ CSDL Oracle 23ai</p>
+            <p class="text-secondary small mb-0">Hiển thị @Model.Count bộ phim đang khởi chiếu tại hệ thống rạp CineSeat</p>
         </div>
         <a asp-action="CinemaShowtimes" class="btn btn-sm btn-outline-light rounded-pill px-3">
             <i class="bi bi-calendar-event me-1"></i> Xem lịch chiếu tất cả rạp
@@ -162,9 +162,9 @@
                     <div class="movie-card h-100 d-flex flex-column">
                         <!-- Poster Container Tỷ lệ 2:3 với Fallback onerror -->
                         <div class="movie-poster-container">
-                            <img src="/images/@(string.IsNullOrEmpty(movie.PosterFile) ? "default-poster.jpg" : movie.PosterFile)" 
+                            <img src="@PosterHelper.GetPosterUrl(movie.PosterFile, movie.Title, movie.MovieId)" 
                                  alt="@movie.Title" 
-                                 class="movie-poster-img"
+                                 class="movie-poster-img poster-fit-top"
                                  onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                             
                             <!-- Nhãn độ tuổi ở góc trên phải -->

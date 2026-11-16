@@ -135,7 +135,7 @@ namespace CineSeat.Web.Controllers
                     }
                 }
 
-                ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không chính xác. Mẹo: Với tài khoản demo, bạn có thể dùng mật khẩu là số điện thoại của tài khoản hoặc 123456.");
+                ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại thông tin đăng nhập.");
             }
             catch (Exception ex)
             {
