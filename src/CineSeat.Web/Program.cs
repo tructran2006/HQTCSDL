@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using CineSeat.Web.Data;
+using CineSeat.Web.Helpers;
 using CineSeat.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -57,6 +58,9 @@ app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Khởi tạo PosterHelper với đường dẫn WebRoot
+PosterHelper.Initialize(app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
 
 // Route mặc định trỏ vào Movies/Index (Trang chủ CineSeat)
 app.MapControllerRoute(

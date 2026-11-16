@@ -12,7 +12,7 @@
                 <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-film"></i></span>
                 Quản Lý Danh Mục Phim
             </h3>
-            <p class="text-secondary small mb-0">Danh sách phim được lưu trữ trực tiếp trong bảng <code>MOVIES</code> (Schema CINESEAT)</p>
+            <p class="text-secondary small mb-0">Quản lý thông tin phim, poster quảng bá, phân loại độ tuổi và trạng thái phát hành</p>
         </div>
 
         <button type="button" class="btn btn-cinema btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#addMovieModal">
@@ -27,30 +27,31 @@
             <table class="table table-dark table-hover table-bordered border-cs align-middle mb-0 fs-8">
                 <thead class="table-black border-cs text-secondary text-uppercase fs-9">
                     <tr>
-                        <th style="width: 60px;">Mã</th>
-                        <th style="width: 80px;">Poster</th>
+                        <th style="width: 50px;">Mã</th>
+                        <th style="width: 75px;">Poster</th>
                         <th>Tên Phim & Thể Loại</th>
-                        <th style="width: 100px;">Độ Tuổi</th>
-                        <th style="width: 110px;">Thời Lượng</th>
-                        <th style="width: 110px;">Suất Chiếu</th>
-                        <th style="width: 130px;">Trạng Thái</th>
-                        <th style="width: 140px;" class="text-center">Thao Tác</th>
+                        <th style="width: 95px;">Độ Tuổi</th>
+                        <th style="width: 105px;">Thời Lượng</th>
+                        <th style="width: 100px;">Suất Chiếu</th>
+                        <th style="width: 120px;">Trạng Thái</th>
+                        <th style="width: 190px;" class="text-center">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var m in Model.Movies)
                     {
+                        string posterUrl = PosterHelper.GetPosterUrl(m.PosterFile, m.Title, m.MovieId);
                         <tr>
                             <td class="fw-bold text-secondary">#@m.MovieId</td>
                             <td>
-                                <img src="/images/@(string.IsNullOrEmpty(m.PosterFile) ? "default-poster.jpg" : m.PosterFile)" 
-                                     alt="@m.Title" class="rounded shadow" style="width: 50px; height: 75px; object-fit: cover;"
+                                <img src="@posterUrl" 
+                                     alt="@m.Title" class="rounded shadow poster-fit-top" style="width: 50px; height: 75px;"
                                      onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                             </td>
                             <td>
                                 <div class="fw-bold text-white fs-7 mb-1">@m.Title</div>
                                 <div class="text-gold fs-9"><i class="bi bi-tags me-1"></i>@m.Genre</div>
-                                <small class="text-secondary fs-9 d-block text-truncate mt-1" style="max-width: 380px;">
+                                <small class="text-secondary fs-9 d-block text-truncate mt-1" style="max-width: 340px;">
                                     @m.Synopsis
                                 </small>
                             </td>
@@ -73,17 +74,37 @@
                                 else
                                 {
                                     <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50">
-                                        <i class="bi bi-pause-circle me-1"></i>Tạm Ẩn
+                                        <i class="bi bi-pause-circle me-1"></i>Tạm Dừng
                                     </span>
                                 }
                             </td>
                             <td class="text-center">
-                                <form asp-action="ToggleMovie" asp-route-id="@m.MovieId" method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm @(m.IsActive ? "btn-outline-warning" : "btn-outline-success") rounded-pill px-3 py-1 fs-9">
-                                        @(m.IsActive ? "Tắt Chiếu" : "Bật Chiếu")
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <!-- Nút Sửa -->
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-9" 
+                                            onclick="openEditMovieModal(@m.MovieId, '@Html.Raw(Html.Encode(m.Title))', '@Html.Raw(Html.Encode(m.Genre))', @m.DurationMin, '@m.AgeRating', '@Html.Raw(Html.Encode(m.Synopsis ?? ""))', '@(m.PosterFile ?? "")', '@posterUrl', @(m.IsActive ? "true" : "false"))"
+                                            title="Chỉnh sửa phim">
+                                        <i class="bi bi-pencil-square me-1"></i>Sửa
                                     </button>
-                                </form>
+
+                                    <!-- Nút Đổi Trạng Thái -->
+                                    <form asp-action="ToggleMovie" asp-route-id="@m.MovieId" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm @(m.IsActive ? "btn-outline-warning" : "btn-outline-success") rounded-pill px-2 py-1 fs-9"
+                                                title="@(m.IsActive ? "Tạm ngưng chiếu" : "Kích hoạt chiếu")">
+                                            @(m.IsActive ? "Ẩn" : "Bật")
+                                        </button>
+                                    </form>
+
+                                    <!-- Nút Xóa -->
+                                    <form asp-action="DeleteMovie" asp-route-id="@m.MovieId" method="post" class="d-inline"
+                                          onsubmit="return confirm('Bạn có chắc muốn xóa hoặc ngừng chiếu phim này? Nếu phim đã có suất chiếu, hệ thống sẽ tự động chuyển trạng thái ngừng chiếu an toàn.');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 fs-9" title="Xóa phim">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -93,27 +114,27 @@
     </div>
 </div>
 
-<!-- MODAL THÊM PHIM MỚI -->
+<!-- MODAL THÊM PHIM MỚI + UPLOAD ẢNH -->
 <div class="modal fade" id="addMovieModal" tabindex="-1" aria-labelledby="addMovieModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-card border-cs rounded-4 text-white">
             <div class="modal-header border-cs">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="addMovieModalLabel">
                     <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-film"></i></span>
-                    Thêm Bộ Phim Mới (INSERT INTO MOVIES)
+                    Thêm Bộ Phim Mới
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form asp-action="AddMovie" method="post">
+            <form asp-action="AddMovie" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Tên Phim (Title):</label>
-                            <input type="text" name="Title" class="form-control bg-surface border-cs text-white shadow-none" required placeholder="Nhập tên phim..." />
+                            <label class="form-label fs-8 text-secondary fw-semibold">Tên Phim: <span class="text-danger">*</span></label>
+                            <input type="text" name="Title" class="form-control bg-surface border-cs text-white shadow-none" required placeholder="Nhập tên phim chính thức..." />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Phân Loại Độ Tuổi (Age Rating):</label>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Phân Loại Độ Tuổi:</label>
                             <select name="AgeRating" class="form-select bg-surface border-cs text-white shadow-none">
                                 <option value="P">P - Mọi lứa tuổi</option>
                                 <option value="K">K - Dưới 13 tuổi có người bảo trợ</option>
@@ -123,28 +144,174 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Thể Loại (Genre):</label>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thể Loại: <span class="text-danger">*</span></label>
                             <input type="text" name="Genre" class="form-control bg-surface border-cs text-white shadow-none" required placeholder="VD: Hành động / Viễn tưởng" />
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Lượng (Phút):</label>
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Lượng (30 - 300 phút): <span class="text-danger">*</span></label>
                             <input type="number" name="DurationMin" class="form-control bg-surface border-cs text-white shadow-none" required min="30" max="300" value="120" />
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Tên File Poster:</label>
-                            <input type="text" name="PosterFile" class="form-control bg-surface border-cs text-white shadow-none" value="default-poster.jpg" />
+
+                        <!-- Upload file ảnh poster & Live Preview -->
+                        <div class="col-md-8">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Tải Ảnh Poster Từ Thiết Bị (Tùy chọn):</label>
+                            <input type="file" name="PosterUpload" accept="image/jpeg,image/png,image/webp" 
+                                   class="form-control bg-surface border-cs text-white shadow-none" 
+                                   onchange="previewPoster(this, 'addPosterPreviewImg', 'addPreviewContainer')" />
+                            <small class="text-secondary fs-9 d-block mt-1">Chấp nhận định dạng: .jpg, .jpeg, .png, .webp (Tối đa 5MB)</small>
+
+                            <div class="mt-2">
+                                <label class="form-label fs-9 text-secondary mb-1">Hoặc nhập tên file poster có sẵn trong wwwroot/images:</label>
+                                <input type="text" name="PosterFile" class="form-control form-control-sm bg-surface border-cs text-secondary shadow-none" placeholder="VD: Dune Part Two.jpg" />
+                            </div>
                         </div>
+
+                        <div class="col-md-4 text-center">
+                            <div class="small text-secondary mb-1">Xem trước ảnh poster:</div>
+                            <div id="addPreviewContainer" class="p-1 bg-surface border-cs rounded-3 d-inline-block shadow" style="width: 100px; height: 150px;">
+                                <img id="addPosterPreviewImg" src="/images/default-poster.jpg" 
+                                     alt="Preview" class="w-100 h-100 rounded-2 poster-fit-top" />
+                            </div>
+                        </div>
+
                         <div class="col-12">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Tóm Tắt Nội Dung (Synopsis):</label>
-                            <textarea name="Synopsis" rows="3" class="form-control bg-surface border-cs text-white shadow-none" placeholder="Nhập tóm tắt nội dung phim..."></textarea>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Tóm Tắt Nội Dung Phim:</label>
+                            <textarea name="Synopsis" rows="3" class="form-control bg-surface border-cs text-white shadow-none" placeholder="Nhập tóm tắt nội dung kịch bản phim..."></textarea>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-cs">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-cinema rounded-pill px-4">Lưu Phim Mới</button>
+                    <button type="submit" class="btn btn-cinema rounded-pill px-4 fw-bold">Lưu Phim Mới</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- MODAL CHỈNH SỬA PHIM + UPLOAD ẢNH MỚI -->
+<div class="modal fade" id="editMovieModal" tabindex="-1" aria-labelledby="editMovieModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-card border-cs rounded-4 text-white">
+            <div class="modal-header border-cs">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="editMovieModalLabel">
+                    <span class="p-1 rounded-2 bg-info bg-opacity-25 text-info"><i class="bi bi-pencil-square"></i></span>
+                    <span>Chỉnh Sửa Thông Tin Phim</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="EditMovie" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="editMovieId" name="MovieId" value="" />
+                
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Tên Phim: <span class="text-danger">*</span></label>
+                            <input type="text" id="editTitle" name="Title" class="form-control bg-surface border-cs text-white shadow-none" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Phân Loại Độ Tuổi:</label>
+                            <select id="editAgeRating" name="AgeRating" class="form-select bg-surface border-cs text-white shadow-none">
+                                <option value="P">P - Mọi lứa tuổi</option>
+                                <option value="K">K - Dưới 13 tuổi có người bảo trợ</option>
+                                <option value="T13">T13 - Từ 13 tuổi trở lên</option>
+                                <option value="T16">T16 - Từ 16 tuổi trở lên</option>
+                                <option value="T18">T18 - Từ 18 tuổi trở lên</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thể Loại: <span class="text-danger">*</span></label>
+                            <input type="text" id="editGenre" name="Genre" class="form-control bg-surface border-cs text-white shadow-none" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Lượng (Phút): <span class="text-danger">*</span></label>
+                            <input type="number" id="editDurationMin" name="DurationMin" class="form-control bg-surface border-cs text-white shadow-none" required min="30" max="300" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Trạng Thái Chiếu:</label>
+                            <select id="editIsActive" name="IsActive" class="form-select bg-surface border-cs text-white shadow-none">
+                                <option value="true">Đang Chiếu (Bật)</option>
+                                <option value="false">Tạm Dừng (Ẩn)</option>
+                            </select>
+                        </div>
+
+                        <!-- Upload file ảnh poster & Live Preview -->
+                        <div class="col-md-8">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thay Đổi Ảnh Poster (Tùy chọn tải ảnh mới từ máy):</label>
+                            <input type="file" name="PosterUpload" accept="image/jpeg,image/png,image/webp" 
+                                   class="form-control bg-surface border-cs text-white shadow-none" 
+                                   onchange="previewPoster(this, 'editPosterPreviewImg', 'editPreviewContainer')" />
+                            <small class="text-secondary fs-9 d-block mt-1">Chọn file ảnh mới để thay thế ảnh hiện tại</small>
+
+                            <div class="mt-2">
+                                <label class="form-label fs-9 text-secondary mb-1">Tên file poster trong CSDL:</label>
+                                <input type="text" id="editPosterFile" name="PosterFile" class="form-control form-control-sm bg-surface border-cs text-secondary shadow-none" />
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 text-center">
+                            <div class="small text-secondary mb-1">Ảnh poster hiện tại / mới:</div>
+                            <div id="editPreviewContainer" class="p-1 bg-surface border-cs rounded-3 d-inline-block shadow" style="width: 100px; height: 150px;">
+                                <img id="editPosterPreviewImg" src="/images/default-poster.jpg" 
+                                     alt="Preview" class="w-100 h-100 rounded-2 poster-fit-top" />
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Tóm Tắt Nội Dung Phim:</label>
+                            <textarea id="editSynopsis" name="Synopsis" rows="3" class="form-control bg-surface border-cs text-white shadow-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-cs">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-cinema rounded-pill px-4 fw-bold">Cập Nhật Phim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Hàm hiển thị Live Preview ảnh khi người dùng chọn file từ máy
+    function previewPoster(input, imgElementId, containerId) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+
+            // Kiểm tra dung lượng 5MB
+            if (file.size > 5 * 1024 * 1024) {
+                alert("File ảnh không được vượt quá 5MB!");
+                input.value = "";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = document.getElementById(imgElementId);
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Đổ dữ liệu vào Modal Sửa Phim
+    function openEditMovieModal(id, title, genre, duration, ageRating, synopsis, posterFile, posterUrl, isActive) {
+        document.getElementById('editMovieId').value = id;
+        document.getElementById('editTitle').value = title;
+        document.getElementById('editGenre').value = genre;
+        document.getElementById('editDurationMin').value = duration;
+        document.getElementById('editAgeRating').value = ageRating;
+        document.getElementById('editSynopsis').value = synopsis;
+        document.getElementById('editPosterFile').value = posterFile;
+        document.getElementById('editIsActive').value = isActive ? "true" : "false";
+
+        const previewImg = document.getElementById('editPosterPreviewImg');
+        previewImg.src = posterUrl || '/images/default-poster.jpg';
+
+        const modal = new bootstrap.Modal(document.getElementById('editMovieModal'));
+        modal.show();
+    }
+</script>
+}

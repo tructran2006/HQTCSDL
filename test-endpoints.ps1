@@ -13,6 +13,8 @@ $endpoints = @(
     @{ Url = 'http://localhost:5000/Admin/Dashboard'; Method = 'GET'; Name = 'Admin Dashboard' },
     @{ Url = 'http://localhost:5000/Admin/Movies'; Method = 'GET'; Name = 'Admin Movies Management' },
     @{ Url = 'http://localhost:5000/Admin/Showtimes'; Method = 'GET'; Name = 'Admin Showtimes Management' },
+    @{ Url = 'http://localhost:5000/Admin/Cinemas'; Method = 'GET'; Name = 'Admin Cinemas Management' },
+    @{ Url = 'http://localhost:5000/Admin/Promotions'; Method = 'GET'; Name = 'Admin Promotions Management' },
     @{ Url = 'http://localhost:5000/Admin/Bookings'; Method = 'GET'; Name = 'Admin Bookings Management' },
     @{ Url = 'http://localhost:5000/css/cineseat.css'; Method = 'GET'; Name = 'CineSeat Modern CSS' },
     @{ Url = 'http://localhost:5000/Account/Login'; Method = 'GET'; Name = 'Account Login Page' },

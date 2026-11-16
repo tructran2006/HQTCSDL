@@ -20,9 +20,9 @@
             <!-- Poster -->
             <div class="col-md-4 col-lg-3 text-center">
                 <div class="movie-poster-container rounded-3 shadow-lg border border-secondary border-opacity-25" style="max-width: 260px; margin: 0 auto;">
-                    <img src="/images/@(string.IsNullOrEmpty(movie.PosterFile) ? "default-poster.jpg" : movie.PosterFile)" 
+                    <img src="@PosterHelper.GetPosterUrl(movie.PosterFile, movie.Title, movie.MovieId)" 
                          alt="@movie.Title" 
-                         class="movie-poster-img"
+                         class="movie-poster-img poster-fit-top"
                          onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                 </div>
             </div>
