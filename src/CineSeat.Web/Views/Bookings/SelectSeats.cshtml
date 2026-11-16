@@ -234,7 +234,7 @@
                 <div class="text-center mt-3">
                     <small class="text-secondary fs-9">
                         <i class="bi bi-shield-check text-success me-1"></i>
-                        Thao tác gọi trực tiếp Package PL/SQL <code>PKG_BOOKING.PR_HOLD</code>
+                        Hệ thống tự động khóa giữ ghế an toàn trong 5 phút để bạn hoàn tất thanh toán.
                     </small>
                 </div>
             </div>
@@ -242,15 +242,15 @@
     </div>
 </div>
 
-<!-- TOAST CẢNH BÁO TRANH CHẤP TRANH GHẾ (ORA-20005) -->
+<!-- TOAST CẢNH BÁO TRANH CHẤP TRANH GHẾ -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090">
     <div id="conflictToast" class="toast align-items-center text-white bg-danger border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
             <div class="toast-body d-flex align-items-center gap-2">
                 <i class="bi bi-exclamation-octagon-fill fs-4"></i>
                 <div>
-                    <strong class="d-block">Tranh chấp giữ ghế (ORA-20005)!</strong>
-                    <span id="conflictToastMessage">Ghế vừa được người khác giữ. Hệ thống đang làm mới lại sơ đồ ghế...</span>
+                    <strong class="d-block">Ghế đã có người đặt trước!</strong>
+                    <span id="conflictToastMessage">Ghế bạn chọn vừa có khách hàng khác đặt trước, hệ thống đã cập nhật lại sơ đồ ghế.</span>
                 </div>
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -289,7 +289,7 @@
                     this.classList.remove("seat-selected");
                 } else {
                     if (selectedSeats.size >= maxSeats) {
-                        alert("Mỗi đơn hàng chỉ được phép chọn tối đa 8 ghế (theo quy tắc nghiệp vụ ORA-20001)!");
+                        alert("Mỗi đơn hàng chỉ được phép chọn tối đa 8 ghế!");
                         return;
                     }
                     selectedSeats.set(seatId, { code: seatCode, type: seatType });

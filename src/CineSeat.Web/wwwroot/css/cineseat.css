@@ -183,6 +183,7 @@ body {
     width: 100%;
     aspect-ratio: 2 / 3;
     object-fit: cover;
+    object-position: top center;
     display: block;
     box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
@@ -244,7 +245,13 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: top center;
     transition: transform 0.4s ease;
+}
+
+.poster-fit-top {
+    object-fit: cover !important;
+    object-position: top center !important;
 }
 .movie-card:hover .movie-poster-img {
     transform: scale(1.05);

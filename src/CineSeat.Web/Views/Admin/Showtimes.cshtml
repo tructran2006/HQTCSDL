@@ -10,9 +10,9 @@
         <div>
             <h3 class="fw-extrabold text-white mb-1 d-flex align-items-center gap-2">
                 <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-calendar3"></i></span>
-                Quản Lý Suất Chiếu & Khởi Tạo Ghế
+                Quản Lý Lịch Chiếu & Suất Chiếu
             </h3>
-            <p class="text-secondary small mb-0">Khi tạo suất chiếu mới, hệ thống tự động sinh 40 ghế AVAILABLE trong bảng <code>SHOWTIME_SEATS</code> theo phòng chiếu</p>
+            <p class="text-secondary small mb-0">Khi tạo suất chiếu mới, hệ thống sẽ tự động khởi tạo 40 ghế cho suất chiếu theo phòng</p>
         </div>
 
         <button type="button" class="btn btn-cinema btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#addShowtimeModal">
@@ -27,13 +27,14 @@
             <table class="table table-dark table-hover table-bordered border-cs align-middle mb-0 fs-8">
                 <thead class="table-black border-cs text-secondary text-uppercase fs-9">
                     <tr>
-                        <th style="width: 70px;">Mã Suất</th>
+                        <th style="width: 60px;">Mã</th>
                         <th>Phim Chiếu</th>
                         <th style="width: 170px;">Cụm Rạp & Phòng</th>
-                        <th style="width: 180px;">Thời Gian Bắt Đầu - Kết Thúc</th>
-                        <th style="width: 120px;">Đơn Giá Vé</th>
-                        <th style="width: 130px;">Ghế Trống</th>
+                        <th style="width: 180px;">Thời Gian Chiếu</th>
+                        <th style="width: 110px;">Giá Vé</th>
+                        <th style="width: 110px;">Ghế Trống</th>
                         <th style="width: 100px;">Trạng Thái</th>
+                        <th style="width: 140px;" class="text-center">Thao Tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,8 +43,15 @@
                         <tr>
                             <td class="fw-bold text-secondary">#@st.ShowtimeId</td>
                             <td>
-                                <div class="fw-bold text-white fs-7">@st.MovieTitle</div>
-                                <small class="text-gold fs-9">Độ tuổi: @st.AgeRating • @st.DurationMin phút</small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="@PosterHelper.GetPosterUrl(st.PosterFile, st.MovieTitle, st.MovieId)" 
+                                         alt="@st.MovieTitle" class="rounded shadow poster-fit-top" style="width: 32px; height: 48px;"
+                                         onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
+                                    <div>
+                                        <div class="fw-bold text-white fs-7">@st.MovieTitle</div>
+                                        <small class="text-gold fs-9">Độ tuổi: @st.AgeRating • @st.DurationMin phút</small>
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 <div class="text-white fw-semibold">@st.CinemaName</div>
@@ -51,7 +59,7 @@
                             </td>
                             <td>
                                 <div class="text-white fw-semibold">
-                                    <i class="bi bi-clock me-1 text-danger"></i>@st.StartAt.ToString("HH:mm") - @st.EndAt.ToString("HH:mm")
+                                    <i class="bi bi-clock me-1 text-danger"></i>@st.StartAt.ToString("HH:mm") ~ @st.EndAt.ToString("HH:mm")
                                 </div>
                                 <small class="text-secondary fs-9">@st.StartAt.ToString("dddd, dd/MM/yyyy")</small>
                             </td>
@@ -74,8 +82,27 @@
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">Tạm đóng</span>
+                                    <span class="badge bg-secondary">Tạm dừng</span>
                                 }
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <!-- Nút Sửa -->
+                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-9"
+                                            onclick="openEditShowtimeModal(@st.ShowtimeId, '@st.StartAt.ToString("yyyy-MM-ddTHH:mm")', '@st.EndAt.ToString("yyyy-MM-ddTHH:mm")', @st.BasePrice, @(st.IsActive ? "true" : "false"))"
+                                            title="Sửa giờ chiếu và giá vé">
+                                        <i class="bi bi-pencil-square me-1"></i>Sửa
+                                    </button>
+
+                                    <!-- Nút Xóa -->
+                                    <form asp-action="DeleteShowtime" asp-route-id="@st.ShowtimeId" method="post" class="d-inline"
+                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa suất chiếu này? Chỉ có thể xóa nếu chưa có vé đặt/giữ.');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 fs-9" title="Xóa suất chiếu">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -92,34 +119,34 @@
             <div class="modal-header border-cs">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="addShowtimeModalLabel">
                     <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-calendar-plus"></i></span>
-                    Tạo Suất Chiếu Mới & Tự Động Sinh 40 Ghế AVAILABLE
+                    Tạo Suất Chiếu Mới
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form asp-action="CreateShowtime" method="post">
+            <form asp-action="CreateShowtime" method="post" id="createShowtimeForm">
                 @Html.AntiForgeryToken()
                 <div class="modal-body p-4">
                     <div class="alert alert-info bg-surface border-cs text-info fs-8 d-flex align-items-center gap-2 mb-3">
                         <i class="bi bi-info-circle-fill fs-5"></i>
                         <div>
-                            Hệ thống sẽ thực thi Transaction nguyên tử: Tạo bản ghi trong <code>SHOWTIMES</code>, đồng thời chạy câu lệnh <code>INSERT INTO SHOWTIME_SEATS SELECT ... FROM SEATS</code> để sinh sẵn 40 ghế <code>AVAILABLE</code> tương ứng theo phòng.
+                            Hệ thống kiểm tra chống trùng giờ trong cùng phòng chiếu và tự động khởi tạo 40 ghế cho suất chiếu.
                         </div>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Chọn Phim Chiếu:</label>
-                            <select name="MovieId" class="form-select bg-surface border-cs text-white shadow-none" required>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Chọn Phim Chiếu: <span class="text-danger">*</span></label>
+                            <select id="addMovieSelect" name="MovieId" class="form-select bg-surface border-cs text-white shadow-none" required onchange="calculateEndAt('add')">
                                 <option value="">-- Chọn phim đang chiếu --</option>
                                 @foreach (var m in Model.ActiveMovies)
                                 {
-                                    <option value="@m.MovieId">@m.Title (@m.AgeRating - @m.DurationMin phút)</option>
+                                    <option value="@m.MovieId" data-duration="@m.DurationMin">@m.Title (@m.AgeRating - @m.DurationMin phút)</option>
                                 }
                             </select>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Chọn Phòng Chiếu (Room):</label>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Chọn Phòng Chiếu (Room): <span class="text-danger">*</span></label>
                             <select name="RoomId" class="form-select bg-surface border-cs text-white shadow-none" required>
                                 <option value="">-- Chọn cụm rạp & phòng --</option>
                                 @foreach (var r in Model.AvailableRooms)
@@ -130,28 +157,115 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Bắt Đầu:</label>
-                            <input type="datetime-local" name="StartAt" class="form-control bg-surface border-cs text-white shadow-none" required 
-                                   value="@DateTime.Now.AddDays(1).ToString("yyyy-MM-ddT10:00")" />
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Bắt Đầu: <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="addStartAt" name="StartAt" class="form-control bg-surface border-cs text-white shadow-none" required 
+                                   value="@DateTime.Now.AddDays(1).ToString("yyyy-MM-ddT10:00")" onchange="calculateEndAt('add')" />
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Kết Thúc:</label>
-                            <input type="datetime-local" name="EndAt" class="form-control bg-surface border-cs text-white shadow-none" required 
-                                   value="@DateTime.Now.AddDays(1).ToString("yyyy-MM-ddT12:30")" />
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Kết Thúc (Tự động): <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="addEndAt" name="EndAt" class="form-control bg-surface border-cs text-white shadow-none" required 
+                                   value="@DateTime.Now.AddDays(1).ToString("yyyy-MM-ddT12:15")" />
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fs-8 text-secondary fw-semibold">Đơn Giá Vé Cơ Bản (VNĐ):</label>
+                            <label class="form-label fs-8 text-secondary fw-semibold">Đơn Giá Vé Cơ Bản (VNĐ): <span class="text-danger">*</span></label>
                             <input type="number" name="BasePrice" class="form-control bg-surface border-cs text-white shadow-none" required min="30000" step="5000" value="80000" />
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-cs">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-cinema rounded-pill px-4">Tạo Suất Chiếu & Sinh Ghế</button>
+                    <button type="submit" class="btn btn-cinema rounded-pill px-4 fw-bold">Tạo Suất Chiếu</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- MODAL CHỈNH SỬA SUẤT CHIẾU -->
+<div class="modal fade" id="editShowtimeModal" tabindex="-1" aria-labelledby="editShowtimeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-card border-cs rounded-4 text-white">
+            <div class="modal-header border-cs">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="editShowtimeModalLabel">
+                    <span class="p-1 rounded-2 bg-info bg-opacity-25 text-info"><i class="bi bi-pencil-square"></i></span>
+                    <span>Chỉnh Sửa Suất Chiếu</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="EditShowtime" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="editShowtimeId" name="ShowtimeId" value="" />
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Bắt Đầu: <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="editStartAt" name="StartAt" class="form-control bg-surface border-cs text-white shadow-none" required />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Thời Gian Kết Thúc: <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="editEndAt" name="EndAt" class="form-control bg-surface border-cs text-white shadow-none" required />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Đơn Giá Vé Cơ Bản (VNĐ): <span class="text-danger">*</span></label>
+                            <input type="number" id="editBasePrice" name="BasePrice" class="form-control bg-surface border-cs text-white shadow-none" required min="30000" step="5000" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fs-8 text-secondary fw-semibold">Trạng Thái Suất Chiếu:</label>
+                            <select id="editIsActive" name="IsActive" class="form-select bg-surface border-cs text-white shadow-none">
+                                <option value="true">Đang Mở Bán (Kích hoạt)</option>
+                                <option value="false">Tạm Dừng (Ẩn)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-cs">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-cinema rounded-pill px-4 fw-bold">Cập Nhật Suất Chiếu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Tự động tính thời gian kết thúc dựa trên thời lượng phim + 15 phút dọn rạp
+    function calculateEndAt(prefix) {
+        const movieSelect = document.getElementById(prefix + 'MovieSelect');
+        const startInput = document.getElementById(prefix + 'StartAt');
+        const endInput = document.getElementById(prefix + 'EndAt');
+
+        if (!movieSelect || !startInput || !endInput) return;
+
+        const selectedOption = movieSelect.options[movieSelect.selectedIndex];
+        const duration = parseInt(selectedOption?.getAttribute('data-duration') || '120');
+
+        if (startInput.value) {
+            const startDate = new Date(startInput.value);
+            if (!isNaN(startDate.getTime())) {
+                const endDate = new Date(startDate.getTime() + (duration + 15) * 60000);
+                // Định dạng yyyy-MM-ddTHH:mm
+                const pad = n => String(n).padStart(2, '0');
+                const formatted = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+                endInput.value = formatted;
+            }
+        }
+    }
+
+    function openEditShowtimeModal(id, startAt, endAt, basePrice, isActive) {
+        document.getElementById('editShowtimeId').value = id;
+        document.getElementById('editStartAt').value = startAt;
+        document.getElementById('editEndAt').value = endAt;
+        document.getElementById('editBasePrice').value = basePrice;
+        document.getElementById('editIsActive').value = isActive ? "true" : "false";
+
+        const modal = new bootstrap.Modal(document.getElementById('editShowtimeModal'));
+        modal.show();
+    }
+</script>
+}

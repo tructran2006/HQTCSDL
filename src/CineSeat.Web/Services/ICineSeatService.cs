@@ -38,7 +38,26 @@ namespace CineSeat.Web.Services
         Task<List<Movie>> GetAllMoviesAdminAsync();
         Task<List<Showtime>> GetAllShowtimesAdminAsync();
         Task<int> AddMovieAsync(CreateMovieInputModel input);
+        Task UpdateMovieAsync(UpdateMovieInputModel input);
+        Task<bool> DeleteMovieAsync(int movieId);
         Task ToggleMovieActiveAsync(int movieId);
+
         Task<int> CreateShowtimeAsync(CreateShowtimeInputModel input);
+        Task UpdateShowtimeAsync(UpdateShowtimeInputModel input);
+        Task DeleteShowtimeAsync(int showtimeId);
+        Task<bool> CheckShowtimeOverlapAsync(int roomId, DateTime startAt, DateTime endAt, int excludeShowtimeId = 0);
+
+        Task<int> AddCinemaAsync(CreateCinemaInputModel input);
+        Task UpdateCinemaAsync(UpdateCinemaInputModel input);
+        Task DeleteCinemaAsync(int cinemaId);
+
+        Task<int> AddRoomAsync(CreateRoomInputModel input);
+        Task DeleteRoomAsync(int roomId);
+
+        Task<List<PromotionAdminModel>> GetAllPromotionsAdminAsync();
+        Task<int> AddPromotionAsync(CreatePromotionInputModel input);
+        Task UpdatePromotionAsync(UpdatePromotionInputModel input);
+        Task TogglePromotionActiveAsync(int promotionId);
+        Task DeletePromotionAsync(int promotionId);
     }
 }

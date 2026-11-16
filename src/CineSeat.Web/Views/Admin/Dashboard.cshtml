@@ -12,14 +12,14 @@
                 <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-speedometer2"></i></span>
                 Dashboard Quản Trị Hệ Thống
             </h3>
-            <p class="text-secondary small mb-0">Dữ liệu thời gian thực được tổng hợp 100% từ schema CINESEAT trong Oracle 23ai Free</p>
+            <p class="text-secondary small mb-0">Dữ liệu thời gian thực được tổng hợp từ cơ sở dữ liệu hệ thống CineSeat</p>
         </div>
 
         <form asp-action="TriggerExpire" method="post" class="d-inline">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-cinema-gold btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2 shadow">
                 <i class="bi bi-hourglass-bottom"></i>
-                <span>Chạy Quét Ghế Quá Hạn (PR_EXPIRE_HOLDS)</span>
+                <span>Quét & giải phóng ghế giữ quá hạn</span>
             </button>
         </form>
     </div>

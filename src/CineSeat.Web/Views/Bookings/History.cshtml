@@ -45,9 +45,9 @@
                         <div class="row align-items-center g-3">
                             <!-- Movie Poster -->
                             <div class="col-auto">
-                                <img src="/images/@(string.IsNullOrEmpty(b.PosterFile) ? "default-poster.jpg" : b.PosterFile)" 
+                                <img src="@PosterHelper.GetPosterUrl(b.PosterFile, b.MovieTitle)" 
                                      alt="@b.MovieTitle" 
-                                     class="rounded-3 shadow" style="width: 70px; height: 105px; object-fit: cover;"
+                                     class="rounded-3 shadow poster-fit-top" style="width: 70px; height: 105px;"
                                      onerror="this.onerror=null; this.src='/images/default-poster.jpg';" />
                             </div>
 
