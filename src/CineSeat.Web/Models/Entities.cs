@@ -11,6 +11,8 @@ namespace CineSeat.Web.Models
         public string? PosterFile { get; set; }
         public bool IsActive { get; set; } = true;
         public int ShowtimeCount { get; set; }
+        public bool HasPremiered { get; set; }
+        public bool CanEdit => !HasPremiered && ShowtimeCount == 0;
     }
 
     public class Cinema

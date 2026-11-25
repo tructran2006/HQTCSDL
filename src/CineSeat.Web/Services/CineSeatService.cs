@@ -998,7 +998,14 @@ namespace CineSeat.Web.Services
             using var cmd = conn.CreateCommand();
 
             cmd.CommandText = @"SELECT m.movie_id, m.title, m.genre, m.duration_min, m.age_rating, m.synopsis, m.poster_file, m.is_active,
-                                       (SELECT COUNT(*) FROM showtimes s WHERE s.movie_id = m.movie_id) AS showtime_count
+                                       (SELECT COUNT(*) FROM showtimes s WHERE s.movie_id = m.movie_id) AS showtime_count,
+                                       CASE 
+                                           WHEN EXISTS (
+                                               SELECT 1 FROM showtimes s 
+                                               WHERE s.movie_id = m.movie_id AND s.start_at <= LOCALTIMESTAMP
+                                           ) THEN 1 
+                                           ELSE 0 
+                                       END AS has_premiered
                                 FROM movies m
                                 ORDER BY m.movie_id DESC";
 
@@ -1015,7 +1022,8 @@ namespace CineSeat.Web.Services
                     Synopsis = reader["synopsis"]?.ToString(),
                     PosterFile = reader["poster_file"]?.ToString(),
                     IsActive = Convert.ToInt32(reader["is_active"]) == 1,
-                    ShowtimeCount = Convert.ToInt32(reader["showtime_count"])
+                    ShowtimeCount = Convert.ToInt32(reader["showtime_count"]),
+                    HasPremiered = Convert.ToInt32(reader["has_premiered"]) == 1
                 });
             }
             return movies;
@@ -1122,6 +1130,17 @@ namespace CineSeat.Web.Services
                 _logger.LogError(ex, "Error toggling movie active");
                 throw;
             }
+        }
+
+        public async Task<bool> HasMoviePremieredAsync(int movieId)
+        {
+            using var conn = await _connectionFactory.CreateOpenConnectionAsync();
+            using var cmd = conn.CreateCommand();
+            // Phim coi là đã công chiếu / đã lên lịch chiếu nếu đã có suất chiếu trong hệ thống
+            cmd.CommandText = @"SELECT COUNT(*) FROM showtimes WHERE movie_id = :p_id";
+            cmd.Parameters.Add("p_id", OracleDbType.Decimal, movieId, ParameterDirection.Input);
+            int count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            return count > 0;
         }
 
         public async Task<int> CreateShowtimeAsync(CreateShowtimeInputModel input)

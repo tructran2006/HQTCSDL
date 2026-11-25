@@ -41,6 +41,7 @@ namespace CineSeat.Web.Services
         Task UpdateMovieAsync(UpdateMovieInputModel input);
         Task<bool> DeleteMovieAsync(int movieId);
         Task ToggleMovieActiveAsync(int movieId);
+        Task<bool> HasMoviePremieredAsync(int movieId);
 
         Task<int> CreateShowtimeAsync(CreateShowtimeInputModel input);
         Task UpdateShowtimeAsync(UpdateShowtimeInputModel input);
