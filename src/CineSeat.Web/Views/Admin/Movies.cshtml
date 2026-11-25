@@ -12,7 +12,7 @@
                 <span class="p-1 rounded-2 bg-danger bg-opacity-25 text-danger"><i class="bi bi-film"></i></span>
                 Quản Lý Danh Mục Phim
             </h3>
-            <p class="text-secondary small mb-0">Quản lý thông tin phim, poster quảng bá, phân loại độ tuổi và trạng thái phát hành</p>
+            <p class="text-secondary small mb-0">Quản lý thông tin phim, poster quảng bá, phân loại độ tuổi. <span class="text-warning"><i class="bi bi-info-circle me-1"></i>Lưu ý: Chỉ các phim chưa công chiếu mới được phép chỉnh sửa để tránh lỗi dữ liệu.</span></p>
         </div>
 
         <button type="button" class="btn btn-cinema btn-sm rounded-pill px-4 py-2 d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#addMovieModal">
@@ -33,7 +33,7 @@
                         <th style="width: 95px;">Độ Tuổi</th>
                         <th style="width: 105px;">Thời Lượng</th>
                         <th style="width: 100px;">Suất Chiếu</th>
-                        <th style="width: 120px;">Trạng Thái</th>
+                        <th style="width: 135px;">Tình Trạng</th>
                         <th style="width: 190px;" class="text-center">Thao Tác</th>
                     </tr>
                 </thead>
@@ -65,27 +65,52 @@
                                 <span class="badge bg-dark border-cs text-info">@m.ShowtimeCount suất</span>
                             </td>
                             <td>
-                                @if (m.IsActive)
+                                @if (m.ShowtimeCount > 0 || m.HasPremiered)
                                 {
-                                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">
-                                        <i class="bi bi-check-circle me-1"></i>Đang Chiếu
+                                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 mb-1 d-inline-block">
+                                        <i class="bi bi-film me-1"></i>Đã Công Chiếu
                                     </span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50">
-                                        <i class="bi bi-pause-circle me-1"></i>Tạm Dừng
+                                    <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-50 mb-1 d-inline-block">
+                                        <i class="bi bi-clock-history me-1"></i>Chưa Công Chiếu
                                     </span>
                                 }
+                                <div>
+                                    @if (m.IsActive)
+                                    {
+                                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 fs-9">
+                                            <i class="bi bi-check-circle me-1"></i>Đang Chiếu
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary border-opacity-50 fs-9">
+                                            <i class="bi bi-pause-circle me-1"></i>Tạm Dừng
+                                        </span>
+                                    }
+                                </div>
                             </td>
                             <td class="text-center">
                                 <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <!-- Nút Sửa -->
-                                    <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-9" 
-                                            onclick="openEditMovieModal(@m.MovieId, '@Html.Raw(Html.Encode(m.Title))', '@Html.Raw(Html.Encode(m.Genre))', @m.DurationMin, '@m.AgeRating', '@Html.Raw(Html.Encode(m.Synopsis ?? ""))', '@(m.PosterFile ?? "")', '@posterUrl', @(m.IsActive ? "true" : "false"))"
-                                            title="Chỉnh sửa phim">
-                                        <i class="bi bi-pencil-square me-1"></i>Sửa
-                                    </button>
+                                    @if (m.CanEdit)
+                                    {
+                                        <!-- Nút Sửa: CHỈ HIỆN Ở PHIM CHƯA CÔNG CHIẾU -->
+                                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-9" 
+                                                onclick="openEditMovieModal(@m.MovieId, '@Html.Raw(Html.Encode(m.Title))', '@Html.Raw(Html.Encode(m.Genre))', @m.DurationMin, '@m.AgeRating', '@Html.Raw(Html.Encode(m.Synopsis ?? ""))', '@(m.PosterFile ?? "")', '@posterUrl', @(m.IsActive ? "true" : "false"))"
+                                                title="Chỉnh sửa thông tin phim (Chưa công chiếu)">
+                                            <i class="bi bi-pencil-square me-1"></i>Sửa
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <!-- Phim ĐÃ CÔNG CHIẾU: Khóa nút Sửa để tránh bị lỗi -->
+                                        <span class="badge bg-dark border-cs text-secondary rounded-pill px-2 py-1 fs-9" 
+                                              title="Phim đã công chiếu, không thể chỉnh sửa để tránh lỗi lịch chiếu và dữ liệu vé">
+                                            <i class="bi bi-lock-fill me-1"></i>Đã chiếu
+                                        </span>
+                                    }
 
                                     <!-- Nút Đổi Trạng Thái -->
                                     <form asp-action="ToggleMovie" asp-route-id="@m.MovieId" method="post" class="d-inline">
