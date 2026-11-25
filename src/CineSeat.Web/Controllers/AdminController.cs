@@ -98,6 +98,14 @@ namespace CineSeat.Web.Controllers
 
             try
             {
+                // Kiểm tra xem phim đã công chiếu chưa để tránh lỗi dữ liệu lịch chiếu và vé
+                bool hasPremiered = await _cineSeatService.HasMoviePremieredAsync(input.MovieId);
+                if (hasPremiered)
+                {
+                    TempData["ErrorMessage"] = $"Không thể chỉnh sửa phim [{input.Title}] vì phim đã công chiếu (đã có suất chiếu trong hệ thống) nhằm bảo đảm an toàn dữ liệu.";
+                    return RedirectToAction(nameof(Movies));
+                }
+
                 // Nếu có upload ảnh mới từ thiết bị
                 if (input.PosterUpload != null && input.PosterUpload.Length > 0)
                 {

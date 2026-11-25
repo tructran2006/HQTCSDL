@@ -564,4 +564,78 @@ public class CineSeatBusinessTests
         // Dọn dẹp mã khuyến mãi thử nghiệm
         await service.DeletePromotionAsync(newPromoId);
     }
+
+    [Fact]
+    public async Task Test11_MoviePremiered_CannotBeEdited_AndUnpremieredCanBeEdited()
+    {
+        var service = CreateService();
+
+        // 1. Phim #1 (Dune: Part Two) đã có suất chiếu / đã công chiếu -> HasMoviePremieredAsync phải trả về true
+        bool isPremiered1 = await service.HasMoviePremieredAsync(1);
+        Assert.True(isPremiered1);
+
+        // Kiểm tra danh sách phim quản trị: các phim có suất chiếu phải có HasPremiered = true
+        var allMovies = await service.GetAllMoviesAdminAsync();
+        var movie1 = allMovies.FirstOrDefault(m => m.MovieId == 1);
+        Assert.NotNull(movie1);
+        Assert.True(movie1.HasPremiered);
+        Assert.False(movie1.CanEdit); // Không được phép sửa để tránh lỗi dữ liệu
+
+        // 2. Thêm một phim mới chưa có suất chiếu (chưa công chiếu)
+        string testMovieTitle = $"Phim Thử Nghiệm {Random.Shared.Next(1000, 9999)}";
+        var createInput = new CreateMovieInputModel
+        {
+            Title = testMovieTitle,
+            Genre = "Khoa học viễn tưởng",
+            DurationMin = 110,
+            AgeRating = "T13",
+            Synopsis = "Mô tả phim thử nghiệm chưa công chiếu",
+            PosterFile = "default-poster.jpg"
+        };
+
+        int newMovieId = await service.AddMovieAsync(createInput);
+        Assert.True(newMovieId > 0);
+
+        try
+        {
+            // Phim mới chưa có suất chiếu -> Chưa công chiếu -> HasMoviePremieredAsync phải trả về false
+            bool isNewMoviePremiered = await service.HasMoviePremieredAsync(newMovieId);
+            Assert.False(isNewMoviePremiered);
+
+            var updatedList = await service.GetAllMoviesAdminAsync();
+            var newMovie = updatedList.FirstOrDefault(m => m.MovieId == newMovieId);
+            Assert.NotNull(newMovie);
+            Assert.False(newMovie.HasPremiered);
+            Assert.Equal(0, newMovie.ShowtimeCount);
+            Assert.True(newMovie.CanEdit); // Phim chưa công chiếu ĐƯỢC PHÉP SỬA
+
+            // Thực hiện chỉnh sửa thành công
+            var updateInput = new UpdateMovieInputModel
+            {
+                MovieId = newMovieId,
+                Title = testMovieTitle + " (Đã Chỉnh Sửa)",
+                Genre = "Hành động / Viễn tưởng",
+                DurationMin = 125,
+                AgeRating = "T16",
+                Synopsis = "Mô tả đã được cập nhật trước khi công chiếu",
+                PosterFile = "default-poster.jpg",
+                IsActive = true
+            };
+
+            await service.UpdateMovieAsync(updateInput);
+
+            // Kiểm tra thông tin đã được cập nhật
+            var reloadedList = await service.GetAllMoviesAdminAsync();
+            var editedMovie = reloadedList.FirstOrDefault(m => m.MovieId == newMovieId);
+            Assert.NotNull(editedMovie);
+            Assert.Equal(testMovieTitle + " (Đã Chỉnh Sửa)", editedMovie.Title);
+            Assert.Equal(125, editedMovie.DurationMin);
+            Assert.Equal("T16", editedMovie.AgeRating);
+        }
+        finally
+        {
+            // Dọn dẹp phim thử nghiệm
+            await service.DeleteMovieAsync(newMovieId);
+        }
+    }
 }
