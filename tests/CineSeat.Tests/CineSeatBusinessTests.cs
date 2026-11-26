@@ -638,4 +638,51 @@ public class CineSeatBusinessTests
             await service.DeleteMovieAsync(newMovieId);
         }
     }
+
+    [Fact]
+    public async Task Test12_AdminUserContext_ReturnsZeroUserId_AndCannotBookTicket()
+    {
+        // Kiểm tra phân quyền: Tài khoản Admin (Quản trị viên) KHÔNG ĐƯỢC PHÉP ĐẶT VÉ
+        // và KHÔNG ĐƯỢC gán nhầm userId sang tài khoản khách hàng ID=1 (Nguyễn Minh Anh)
+        var service = CreateService();
+
+        // 1. Giả lập phiên đăng nhập của Admin
+        var adminClaims = new List<System.Security.Claims.Claim>
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "0"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Quản Trị Viên CineSeat"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "admin@cineseat.vn"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "ADMIN")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(adminClaims, "Cookie");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = principal };
+        var httpContextAccessor = new Microsoft.AspNetCore.Http.HttpContextAccessor { HttpContext = httpContext };
+
+        var adminUserContext = new UserContext(httpContextAccessor, service);
+
+        // Khẳng định vai trò Admin
+        Assert.True(adminUserContext.IsAdmin);
+        Assert.False(adminUserContext.IsCustomer);
+        Assert.Equal("ADMIN", adminUserContext.CurrentUserRole);
+
+        // ĐẶC TẢ QUAN TRỌNG: CurrentUserId của Admin PHẢI BẰNG 0, KHÔNG ĐƯỢC fallback về 1
+        Assert.Equal(0, adminUserContext.CurrentUserId);
+
+        var adminUser = await adminUserContext.GetCurrentUserAsync();
+        Assert.NotNull(adminUser);
+        Assert.Equal(0, adminUser.UserId);
+
+        // 2. Nếu Admin cố tình gọi giữ ghế với userId = 0 -> Oracle PL/SQL PKG_BOOKING.PR_HOLD
+        // sẽ từ chối ngay lập tức do user_id=0 không tồn tại trong bảng APP_USERS (Bắt lỗi -20006)
+        int showtimeId = await GetUpcomingShowtimeAsync();
+        int seatId = await GetAvailableSeatAsync(showtimeId);
+        string seatJson = JsonSerializer.Serialize(new[] { seatId });
+
+        var ex = await Assert.ThrowsAsync<CineSeatException>(() =>
+            service.HoldSeatsAsync(adminUserContext.CurrentUserId, showtimeId, seatJson, null)
+        );
+
+        Assert.Equal(20006, ex.ErrorCode);
+    }
 }

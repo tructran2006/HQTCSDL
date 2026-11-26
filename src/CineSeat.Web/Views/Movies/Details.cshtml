@@ -165,7 +165,7 @@
                                             <a asp-controller="Bookings" asp-action="SelectSeats" asp-route-id="@st.ShowtimeId" 
                                                class="btn btn-cinema btn-sm w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-1">
                                                 <i class="bi bi-grid-3x3-gap-fill"></i>
-                                                <span>Chọn Ghế Ngay</span>
+                                                <span>@(User.IsInRole("ADMIN") ? "Xem Sơ Đồ Ghế" : "Chọn Ghế Ngay")</span>
                                             </a>
                                         }
                                         else

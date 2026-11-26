@@ -116,7 +116,18 @@ namespace CineSeat.Web.Controllers
                 return RedirectToAction("Login", "Account", new { returnUrl = Url.Action("SelectSeats", new { id = request.ShowtimeId }) });
             }
 
+            if (User.IsInRole("ADMIN"))
+            {
+                TempData["ErrorMessage"] = "Tài khoản Quản trị viên (Admin) chỉ có quyền xem thông tin và quản lý hệ thống, không được phép thực hiện đặt vé.";
+                return RedirectToAction(nameof(SelectSeats), new { id = request.ShowtimeId });
+            }
+
             int currentUser = _userContext.CurrentUserId;
+            if (currentUser <= 0)
+            {
+                TempData["ErrorMessage"] = "Vui lòng đăng nhập bằng tài khoản Khách hàng để tiến hành giữ ghế.";
+                return RedirectToAction("Login", "Account", new { returnUrl = Url.Action("SelectSeats", new { id = request.ShowtimeId }) });
+            }
 
             if (string.IsNullOrWhiteSpace(request.SeatIdsJson) || request.SeatIdsJson == "[]")
             {
@@ -159,7 +170,26 @@ namespace CineSeat.Web.Controllers
                 });
             }
 
+            if (User.IsInRole("ADMIN"))
+            {
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = 403,
+                    ErrorMessage = "Tài khoản Quản trị viên (Admin) chỉ có quyền xem thông tin và quản trị hệ thống, không được phép thực hiện đặt vé."
+                });
+            }
+
             int currentUser = _userContext.CurrentUserId;
+            if (currentUser <= 0)
+            {
+                return Json(new HoldSeatsResult
+                {
+                    Success = false,
+                    ErrorCode = 401,
+                    ErrorMessage = "Vui lòng đăng nhập bằng tài khoản Khách hàng để tiến hành giữ ghế."
+                });
+            }
 
             if (string.IsNullOrWhiteSpace(request.SeatIdsJson) || request.SeatIdsJson == "[]")
             {
@@ -206,9 +236,15 @@ namespace CineSeat.Web.Controllers
         }
 
         // GET: Bookings/Checkout/{bookingId}
-        [Authorize(Roles = "CUSTOMER,ADMIN")]
+        [Authorize(Roles = "CUSTOMER")]
         public async Task<IActionResult> Checkout(int id)
         {
+            if (User.IsInRole("ADMIN"))
+            {
+                TempData["ErrorMessage"] = "Tài khoản Quản trị viên (Admin) không được phép thực hiện thanh toán đặt vé.";
+                return RedirectToAction("Dashboard", "Admin");
+            }
+
             var booking = await _cineSeatService.GetBookingByIdAsync(id);
             if (booking == null)
             {
@@ -232,9 +268,15 @@ namespace CineSeat.Web.Controllers
         // POST: Bookings/ConfirmPayment
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CUSTOMER,ADMIN")]
+        [Authorize(Roles = "CUSTOMER")]
         public async Task<IActionResult> ConfirmPayment(int bookingId, string method)
         {
+            if (User.IsInRole("ADMIN"))
+            {
+                TempData["ErrorMessage"] = "Tài khoản Quản trị viên (Admin) không được phép thanh toán đặt vé.";
+                return RedirectToAction("Dashboard", "Admin");
+            }
+
             try
             {
                 await _cineSeatService.ConfirmBookingAsync(bookingId, method);
@@ -257,9 +299,15 @@ namespace CineSeat.Web.Controllers
         // POST: Bookings/Cancel
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CUSTOMER,ADMIN")]
+        [Authorize(Roles = "CUSTOMER")]
         public async Task<IActionResult> CancelBooking(int bookingId)
         {
+            if (User.IsInRole("ADMIN"))
+            {
+                TempData["ErrorMessage"] = "Tài khoản Quản trị viên (Admin) không được phép thao tác tại luồng này.";
+                return RedirectToAction("Bookings", "Admin");
+            }
+
             try
             {
                 await _cineSeatService.CancelBookingAsync(bookingId);
@@ -280,11 +328,22 @@ namespace CineSeat.Web.Controllers
         }
 
         // GET: Bookings/History
-        [Authorize(Roles = "CUSTOMER,ADMIN")]
+        [Authorize]
         public async Task<IActionResult> History()
         {
+            if (User.IsInRole("ADMIN"))
+            {
+                // Admin không có lịch sử vé cá nhân, chuyển hướng thẳng vào Báo cáo Đơn vé của Admin
+                return RedirectToAction("Bookings", "Admin");
+            }
+
             var currentUser = await _userContext.GetCurrentUserAsync();
             int userId = currentUser?.UserId ?? _userContext.CurrentUserId;
+            if (userId <= 0)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+
             var bookings = await _cineSeatService.GetBookingHistoryByUserIdAsync(userId);
 
             ViewBag.CurrentUser = currentUser;
