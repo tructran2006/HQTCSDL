@@ -58,6 +58,12 @@ namespace CineSeat.Web.Services
         {
             get
             {
+                if (IsAdmin)
+                {
+                    // Admin là tài khoản quản trị hệ thống, không có ID khách hàng và không được phép đặt vé
+                    return 0;
+                }
+
                 if (IsAuthenticated && User != null)
                 {
                     var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -66,8 +72,8 @@ namespace CineSeat.Web.Services
                         return uid;
                     }
                 }
-                // Fallback mặc định cho khách/demo nếu chưa đăng nhập
-                return 1;
+                // Khách chưa đăng nhập trả về 0, tuyệt đối không fallback về 1 để tránh gán nhầm vé cho khách hàng ID=1
+                return 0;
             }
         }
 
@@ -87,21 +93,18 @@ namespace CineSeat.Web.Services
             if (IsAuthenticated)
             {
                 int uid = CurrentUserId;
-                var user = await _cineSeatService.GetUserByIdAsync(uid);
-                if (user != null)
+                if (uid > 0)
                 {
-                    return user;
+                    var user = await _cineSeatService.GetUserByIdAsync(uid);
+                    if (user != null)
+                    {
+                        return user;
+                    }
                 }
             }
 
-            // Trả về user mặc định nếu chưa đăng nhập
-            return new AppUser
-            {
-                UserId = 1,
-                FullName = "Nguyễn Minh Anh",
-                Email = "minhanh@demo.local",
-                Phone = "0900000001"
-            };
+            // Khách chưa đăng nhập trả về null
+            return null;
         }
     }
 }

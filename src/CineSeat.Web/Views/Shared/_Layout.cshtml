@@ -53,12 +53,24 @@
                         </li>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link px-3 @(ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "active text-danger fw-bold" : "text-light")" 
-                                   asp-controller="Bookings" asp-action="History">
-                                    <i class="bi bi-receipt me-1"></i> Vé Của Tôi
-                                </a>
-                            </li>
+                            @if (User.IsInRole("CUSTOMER"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link px-3 @(ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "active text-danger fw-bold" : "text-light")" 
+                                       asp-controller="Bookings" asp-action="History">
+                                        <i class="bi bi-receipt me-1"></i> Vé Của Tôi
+                                    </a>
+                                </li>
+                            }
+                            else if (User.IsInRole("ADMIN"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link px-3 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" && ViewContext.RouteData.Values["action"]?.ToString() == "Bookings" ? "active text-danger fw-bold" : "text-light")" 
+                                       asp-controller="Admin" asp-action="Bookings">
+                                        <i class="bi bi-receipt me-1"></i> Quản Lý Đơn Vé
+                                    </a>
+                                </li>
+                            }
                         }
                     </ul>
 
